@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Cours #2 - Status"
+title:  "Cours #2 - Contrendu"
 date:   2016-01-22 17:42:09 -0500
 categories: contrendu
 ---
