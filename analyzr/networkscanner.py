@@ -9,7 +9,7 @@ from collections import namedtuple
 
 from netaddr import *
 from scapy.all import *
-from scapy.layers.inet import IP, TCP, ICMP
+from scapy.layers.inet import IP, TCP, ICMP, UDP
 from scapy.layers.l2 import arping
 
 from .portscanthread import PortScanThread
@@ -87,6 +87,23 @@ class NetworkScanner:
                 logger.error("%s. Did you run as root?", e.strerror)
             else:
                 raise
+
+    def find_hops(self):
+        iphops = dict()
+        for network, live_hosts in self.live_network_hosts.items():
+            for live_host in live_hosts:
+                for hops in range(1, 28): # Max 4 hops..on reste sur le réseau local
+                    reply = sr1(IP(dst=live_host.ip, ttl=hops) / UDP(dport=40000), verbose=0, timeout=1)
+                    if reply is None:
+                        # No reply
+                        break
+                    elif reply.type == 3:
+                        # On a atteint notre destination!
+                        iphops[live_host.ip] = hops
+                        break
+
+        for ip, hops in iphops.items():
+            print("{0:s} is {1:d} hops away!".format(ip, hops))
 
     def pretty_print_ips(self):
         for network, live_hosts in self.live_network_hosts.items():
