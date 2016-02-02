@@ -5,21 +5,19 @@ analyzr.NetworkScanner
 This modules allows to scan the network of the current host..
 """
 import errno
-from collections import namedtuple
 
 from netaddr import IPNetwork, IPAddress, EUI, NotRegisteredError
 from scapy.all import *
 from scapy.layers.inet import IP, TCP, ICMP, UDP
 from scapy.layers.l2 import arping
 
+from core.entities import NetworkNode
 from .portscanthread import PortScanThread
 from .topports import topports
 from .utils import to_CIDR_notation
 
 logging.basicConfig(format='%(asctime)s %(levelname)-5s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-LiveHost = namedtuple("LiveHost", ["ip", "mac"])
 
 
 class NetworkScanner:
@@ -72,13 +70,16 @@ class NetworkScanner:
             else:
                 raise
 
-    def scan_and_find_live_hosts_on_networks(self, timeout=1):
+    def scan_and_find_network_nodes_on_networks(self, timeout=1):
         try:
             for interface, network in self.networks_interfaces.items():
                 ans, unans = scapy.layers.l2.arping(str(network), iface=interface, timeout=timeout, verbose=False)
                 for s, r in ans.res:
-                    self.live_network_hosts.setdefault(network, []).append(
-                        LiveHost(ip=IPAddress(r[ARP].psrc), mac=EUI(r[Ether].src)))
+                    node = NetworkNode()
+                    node.ip = IPAddress(r[ARP].psrc)
+                    node.mac = EUI(r[Ether].src)
+                    node.host = self.resolve(r[ARP].psrc)
+                    self.live_network_hosts.setdefault(network, []).append(node)
 
                 # On sniff le réseau pendant quelques secondes pour trouver des hôtes additionnels
                 self.passive_network_scan(network)
@@ -103,53 +104,63 @@ class NetworkScanner:
             else:
                 continue
 
-            if src in network.cidr and not [live_host for live_host in self.live_network_hosts[network]
-                                            if src == live_host.ip]:
+            if src in network.cidr and not [network_node for network_node in self.live_network_hosts[network]
+                                            if src == network_node.ip]:
                 new_hosts_count += 1
-                self.live_network_hosts.setdefault(network, []).append(LiveHost(ip=src, mac=EUI(i.src)))
+                host = self.resolve(str(src))
+                self.live_network_hosts.setdefault(network, []).append(NetworkNode(src, EUI(i.src), host))
 
-            if dst in network.cidr and not [live_host for live_host in self.live_network_hosts[network]
-                                            if dst == live_host.ip] and i.dst != 'ff:ff:ff:ff:ff:ff':
+            if dst in network.cidr and not [network_node for network_node in self.live_network_hosts[network]
+                                            if dst == network_node.ip] and i.dst != 'ff:ff:ff:ff:ff:ff':
+                host = self.resolve(str(src))
                 new_hosts_count += 1
-                self.live_network_hosts.setdefault(network, []).append(LiveHost(ip=dst, mac=EUI(i.dst)))
+                self.live_network_hosts.setdefault(network, []).append(NetworkNode(dst, EUI(i.dst), host))
 
         logger.debug("Passive scan found {0:d} new hosts.".format(new_hosts_count))
 
+    def resolve(self, ip):
+        """rdns with a timeout"""
+        socket.setdefaulttimeout(2)
+        try:
+            host = socket.gethostbyaddr(ip)
+        except:
+            host = None
+        if not host is None:
+            host = host[0]
+        return host
+
     def find_hops(self):
         iphops = dict()
-        for network, live_hosts in self.live_network_hosts.items():
-            for live_host in live_hosts:
+        for network, network_nodes in self.live_network_hosts.items():
+            for network_node in network_nodes:
                 for hops in range(1, 28):
-                    reply = sr1(IP(dst=live_host.ip, ttl=hops) / UDP(dport=40000), verbose=0, timeout=1)
+                    reply = sr1(IP(dst=str(network_node.ip), ttl=hops) / UDP(dport=40000), verbose=0, timeout=1)
                     if reply is None:
                         # No reply
                         break
                     elif reply.type == 3:
                         # On a atteint notre destination!
-                        iphops[live_host.ip] = hops
+                        iphops[network_node.ip] = hops
                         break
 
         for ip, hops in iphops.items():
-            print("{0:s} is {1:d} hops away!".format(ip, hops))
+            print("{0:s} is {1:d} hops away!".format(str(ip), hops))
 
     def pretty_print_ips(self):
-        for network, live_hosts in self.live_network_hosts.items():
+        for network, network_nodes in self.live_network_hosts.items():
             print("Live hosts in network {0:s}".format(str(network)))
-            for live_host in live_hosts:
-                try:
-                    print("{0:20s} {1:s} --> OUI: {2:s}".format(str(live_host.ip), str(live_host.mac),
-                                                                live_host.mac.oui.registration().org))
-                except NotRegisteredError:
-                    print("{0:20s} {1:s} --> OUI: {2:s}".format(str(live_host.ip), str(live_host.mac),
-                                                                "Unknown OUI"))
+            for network_node in network_nodes:
+                print(u'\t{0:20s}{1:20s}{2:20s}'.format(str(network_node.ip),
+                                                        str(network_node.mac),
+                                                        str(network_node.host)))
 
-    def scan_live_hosts_for_opened_ports(self):
+    def scan_found_network_nodes_for_opened_ports(self):
         count = sum(len(v) for v in self.live_network_hosts.values())
         results = [None] * count
         threads = []
-        for network, live_hosts in self.live_network_hosts.items():
-            for live_host in live_hosts:
-                t = PortScanThread(portlist=topports, tid=len(threads), target=str(live_host), results=results)
+        for network, network_nodes in self.live_network_hosts.items():
+            for network_node in network_nodes:
+                t = PortScanThread(portlist=topports, tid=len(threads), target=network_node, results=results)
                 t.start()
                 threads.append(t)
 

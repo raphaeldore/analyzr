@@ -18,7 +18,7 @@ class PortScanThread(threading.Thread):
 
         openedports = []
         for port in self.portlist:
-            response = sr1(IP(dst=self.target.ip)/TCP(dport=port, flags="S"),verbose=False, timeout=0.2)
+            response = sr1(IP(dst=str(self.target.ip))/TCP(dport=port, flags="S"),verbose=False, timeout=0.2)
 
             if response:
                 # flags is 18 if SYN,ACK received
