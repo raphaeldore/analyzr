@@ -1,7 +1,6 @@
+import math
 import socket
 import struct
-
-import math
 
 
 def long2netmask(arg):

@@ -5,31 +5,31 @@ analyzr.NetworkScanner
 This modules allows to scan the network of the current host..
 """
 import errno
-from scapy.all import *
-from netaddr import *
-from scapy.layers.l2 import arping
-from scapy.layers.inet import IP, TCP, ICMP
 from collections import namedtuple
 
-from analyzr.utils import to_CIDR_notation
+from netaddr import *
+from scapy.all import *
+from scapy.layers.inet import IP, TCP, ICMP
+from scapy.layers.l2 import arping
+
+from .portscanthread import PortScanThread
+from .topports import topports
+from .utils import to_CIDR_notation
 
 logging.basicConfig(format='%(asctime)s %(levelname)-5s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 LiveHost = namedtuple("LiveHost", ["ip", "mac"])
 
-# Define TCP port range to scan
-portRange = [22, 23, 80, 443, 449, 3389, 161]
-
 
 class NetworkScanner:
     def __init__(self):
         self.host_ip_address = ""
         self.networks_interfaces = {}
-        self.read_networks_interfaces()
         self.live_network_hosts = dict()  # (network --> (ip --> mac, ip --> mac, ip --> mac))
+        self.__read_networks_interfaces()
 
-    def read_networks_interfaces(self):
+    def __read_networks_interfaces(self):
         for network, netmask, gateway, interface, address in scapy.config.conf.route.routes:
 
             # skip loopback network and default gw
@@ -48,8 +48,8 @@ class NetworkScanner:
 
             if interface != scapy.config.conf.iface:
                 logger.warn(
-                        "Skipping %s because scapy currently doesn't support arping on non-primary network interfaces",
-                        ip_network.cidr)
+                    "Skipping %s because scapy currently doesn't support arping on non-primary network interfaces",
+                    ip_network.cidr)
                 continue
 
             if ip_network is None:
@@ -68,7 +68,7 @@ class NetworkScanner:
                     if addr == network.broadcast:
                         continue
 
-                    portScan(str(addr), portRange)
+                    portScan(str(addr), topports)
         except socket.error as e:
             if e.errno == errno.EPERM:  # Operation not permitted
                 logger.error("%s. Did you run as root?", e.strerror)
@@ -80,23 +80,35 @@ class NetworkScanner:
             for interface, network in self.networks_interfaces.items():
                 ans, unans = scapy.layers.l2.arping(str(network), iface=interface, timeout=timeout, verbose=False)
                 for s, r in ans.res:
-                    #self.live_network_hosts.setdefault(str(network), {}).[str(network)][r.psrc] = r.hwsrc
-                    #self.live_network_hosts.setdefault(str(network), []).append({r.psrc, r.hwsrc})
-                    self.live_network_hosts.setdefault(str(network), []).append(LiveHost(ip = r[ARP].psrc, mac = r[ARP].hwsrc))
-                    #self.live_network_hosts[str(network)][r.psrc] = r.hwsrc
+                    self.live_network_hosts.setdefault(str(network), []).append(
+                        LiveHost(ip=r[ARP].psrc, mac=r[Ether].src))
         except socket.error as e:
             if e.errno == errno.EPERM:  # Operation not permitted
                 logger.error("%s. Did you run as root?", e.strerror)
             else:
                 raise
 
-        print("DONE!")
-
     def pretty_print_ips(self):
         for network, live_hosts in self.live_network_hosts.items():
             for live_host in live_hosts:
-                logger.debug("{0:s}:{1:s}".format(live_host.ip, live_host.mac))
-                #print("{0:s}:{0:s}".format(str(live_host.ip), str(live_host.mac)))
+                print("{0:20s} {1:s}".format(live_host.ip, live_host.mac))
+
+    def scan_live_hosts_for_opened_ports(self):
+        count = sum(len(v) for v in self.live_network_hosts.values())
+        results = [None] * count
+        threads = []
+        for network, live_hosts in self.live_network_hosts.items():
+            for live_host in live_hosts:
+                t = PortScanThread(portlist=topports, tid=len(threads), target=live_host, results=results)
+                t.start()
+                threads.append(t)
+
+        for thread in threads:
+            thread.join()
+
+        for r in results:
+            if r:
+                print(r)
 
 
 def portScan(host, ports):
