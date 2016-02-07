@@ -2,7 +2,6 @@ import math
 import socket
 import struct
 
-
 def long2netmask(arg):
     if (arg <= 0 or arg >= 0xFFFFFFFF):
         raise ValueError("illegal netmask value", hex(arg))

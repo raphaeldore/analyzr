@@ -11,10 +11,11 @@ from scapy.all import *
 from scapy.layers.inet import IP, TCP, ICMP, UDP
 from scapy.layers.l2 import arping
 
-from core.entities import NetworkNode
+from .utils.network import to_CIDR_notation
+from .core.entities import NetworkNode
 from .portscanthread import PortScanThread
 from .topports import topports
-from .utils import to_CIDR_notation
+
 
 logging.basicConfig(format='%(asctime)s %(levelname)-5s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
