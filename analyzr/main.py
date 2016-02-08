@@ -33,6 +33,7 @@ def execute():
     networkscanner = NetworkDiscoverer(scanners)
 
     networkscanner.discover()
+    networkscanner.pretty_print_ips()
 
     #networkscanner.scan_and_find_network_nodes_on_networks()
     #networkscanner.pretty_print_ips()

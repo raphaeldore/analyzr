@@ -23,3 +23,7 @@ class Scanner(AnalyzrModule):
         :param network: network to scan.
         """
         raise NotImplemented
+
+    @property
+    def number_of_hosts_found(self) -> int:
+        return sum(len(v) for v in self.scan_results.values())

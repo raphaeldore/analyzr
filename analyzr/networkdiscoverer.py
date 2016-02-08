@@ -24,85 +24,21 @@ class NetworkDiscoverer():
     def __init__(self, scanners : list()):
         self.scanners = scanners
         self.host_ip_address = ""
-        self.live_network_hosts = dict()  # (network --> (ip --> mac, ip --> mac, ip --> mac))
+        self.live_network_hosts = dict()  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
 
     def discover(self):
         for scanner in self.scanners:
             scanner.scan()
 
-    def port_ping_scan(self):
-        try:
-            for interface, network in self.networks_interfaces.items():
-                # Toutes les addresses possibles du réseau
-                for addr in list(network):
-                    if addr == network.broadcast:
-                        continue
+        self.combine_results()
 
-                    portScan(str(addr), topports)
-        except socket.error as e:
-            if e.errno == errno.EPERM:  # Operation not permitted
-                logger.error("%s. Did you run as root?", e.strerror)
-            else:
-                raise
+    def combine_results(self):
+        for scanner in self.scanners:
+            for network, network_nodes in scanner.scan_results.items():
+                tmp = self.live_network_hosts.setdefault(network, set())
+                tmp.update(network_nodes)
 
-    def scan_and_find_network_nodes_on_networks(self, timeout=1):
-        try:
-            for interface, network in self.networks_interfaces.items():
-                ans, unans = scapy.layers.l2.arping(str(network), iface=interface, timeout=timeout, verbose=False)
-                for s, r in ans.res:
-                    node = NetworkNode()
-                    node.ip = IPAddress(r[ARP].psrc)
-                    node.mac = EUI(r[Ether].src)
-                    node.host = self.resolve(r[ARP].psrc)
-                    self.live_network_hosts.setdefault(network, []).append(node)
 
-                # On sniff le réseau pendant quelques secondes pour trouver des hôtes additionnels
-                self.passive_network_scan(network)
-        except socket.error as e:
-            if e.errno == errno.EPERM:  # Operation not permitted
-                logger.error("%s. Did you run as root?", e.strerror)
-            else:
-                raise
-
-    def passive_network_scan(self, network):
-        logger.debug("Sniffing network traffic for more hosts.")
-        new_hosts_count = 0
-        ans = sniff(timeout=10)
-        logger.debug("Analyzing traffic.")
-        for i in ans:
-            if IP in i:
-                src = IPAddress(i[IP].src)
-                dst = IPAddress(i[IP].dst)
-            elif ARP in i:
-                src = IPAddress(i[ARP].psrc)
-                dst = IPAddress(i[ARP].pdst)
-            else:
-                continue
-
-            if src in network.cidr and not [network_node for network_node in self.live_network_hosts[network]
-                                            if src == network_node.ip]:
-                new_hosts_count += 1
-                host = self.resolve(str(src))
-                self.live_network_hosts.setdefault(network, []).append(NetworkNode(src, EUI(i.src), host))
-
-            if dst in network.cidr and not [network_node for network_node in self.live_network_hosts[network]
-                                            if dst == network_node.ip] and i.dst != 'ff:ff:ff:ff:ff:ff':
-                host = self.resolve(str(src))
-                new_hosts_count += 1
-                self.live_network_hosts.setdefault(network, []).append(NetworkNode(dst, EUI(i.dst), host))
-
-        logger.debug("Passive scan found {0:d} new hosts.".format(new_hosts_count))
-
-    def resolve(self, ip):
-        """rdns with a timeout"""
-        socket.setdefaulttimeout(2)
-        try:
-            host = socket.gethostbyaddr(ip)
-        except:
-            host = None
-        if not host is None:
-            host = host[0]
-        return host
 
     def find_hops(self):
         iphops = dict()
@@ -145,21 +81,3 @@ class NetworkDiscoverer():
         for r in results:
             if r:
                 print(r)
-
-
-def portScan(host, ports):
-    # Send SYN with random Src Port for each Dst port
-    for dstPort in ports:
-        srcPort = random.randint(1025, 65534)
-        resp = sr1(IP(dst=host) / TCP(sport=srcPort, dport=dstPort, flags="S"), timeout=1, verbose=0)
-        if resp is None:
-            logger.info(host + ":" + str(dstPort) + " is filtered (silently dropped).")
-        elif resp.haslayer(TCP):
-            if resp.getlayer(TCP).flags == 0x12:
-                send_rst = sr(IP(dst=host) / TCP(sport=srcPort, dport=dstPort, flags="R"), timeout=1, verbose=0)
-                logger.info(host + ":" + str(dstPort) + " is open.")
-            elif resp.getlayer(TCP).flags == 0x14:
-                logger.info(host + ":" + str(dstPort) + " is closed.")
-            elif resp.haslayer(ICMP):
-                if int(resp.getlayer(ICMP).type) == 3 and int(resp.getlayer(ICMP).code) in [1, 2, 3, 9, 10, 13]:
-                    logger.info(host + ":" + str(dstPort) + " is filtered (silently dropped).")

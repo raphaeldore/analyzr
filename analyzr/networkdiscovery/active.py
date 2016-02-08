@@ -8,10 +8,10 @@ from scapy.layers.inet import IP, TCP, ICMP
 from scapy.layers.l2 import ARP, Ether
 from scapy.sendrecv import sr1, sr
 
-from analyzr import topports
+from analyzr.topports import topports
 from analyzr.core.entities import NetworkNode
 from analyzr.networkdiscovery.scanner import Scanner
-from analyzr.utils.network import resolve_ip
+from analyzr.utils.network import resolve_ip, CommonTCPFlags
 
 
 class ArpPing(Scanner):
@@ -19,6 +19,7 @@ class ArpPing(Scanner):
         super(ArpPing, self).__init__()
 
     def scan(self):
+        self.logger.info("Executing arp ping scan...")
         try:
             for interface, network in self.config["networks_interfaces"]:
                 discovered_hosts = set()
@@ -37,12 +38,15 @@ class ArpPing(Scanner):
             else:
                 raise
 
+        self.logger.info("Arp ping scan done. Found %d unique hosts.", self.number_of_hosts_found)
+
 
 class PortPing(Scanner):
     def __init__(self):
         super(PortPing, self).__init__()
 
     def scan(self):
+        self.logger.info("Executing port ping scan...")
         try:
             for interface, network in self.config["networks_interfaces"]:
                 discovered_hosts = set()
@@ -51,7 +55,7 @@ class PortPing(Scanner):
                     if addr == network.broadcast:
                         continue
 
-                    discovered_host = self._portScan(str(addr), topports, network, interface)
+                    discovered_host = self._portScan(str(addr), topports, interface)
                     if discovered_host:
                         discovered_hosts.add(discovered_host)
 
@@ -62,17 +66,22 @@ class PortPing(Scanner):
             else:
                 raise
 
-    def _portScan(self, host, ports, network, interface):
+        self.logger.info("Port ping scan done. Found %d unique hosts", self.number_of_hosts_found)
+
+    def _portScan(self, host, ports, interface):
         # Send SYN with random Src Port for each Dst port
         for dstPort in ports:
             srcPort = random.randint(1025, 65534)
             resp = sr1(IP(dst=host) / TCP(sport=srcPort, dport=dstPort, flags="S"), timeout=1, verbose=0,
                        iface=interface)
             if resp is None:
-                self.logger.info(host + ":" + str(dstPort) + " is filtered (silently dropped).")
+                # No response... we cannot know if host exists (port is probably filtered, aka silently dropped)
+                pass
             elif resp.haslayer(TCP):
-                if resp.getlayer(TCP).flags == 0x12 or resp.getlayer(TCP).flags == 0x14:
-                    send_rst = sr(IP(dst=host) / TCP(sport=srcPort, dport=dstPort, flags="R"), timeout=1, verbose=0)
+                if resp.getlayer(TCP).flags == CommonTCPFlags.SYN_ACK or resp.getlayer(
+                        TCP).flags == CommonTCPFlags.RST_ACK:
+                    send_rst = sr(IP(dst=host) / TCP(sport=srcPort, dport=dstPort, flags="R"), timeout=1, verbose=0,
+                                  iface=interface)
                     # We know the port is closed or opened (we got a response), so we deduce that the host exists
                     node = NetworkNode()
                     node.ip = IPAddress(resp[IP].src)
@@ -81,8 +90,7 @@ class PortPing(Scanner):
                     return NetworkNode
                 elif resp.haslayer(ICMP):
                     if int(resp.getlayer(ICMP).type) == 3 and int(resp.getlayer(ICMP).code) in [1, 2, 3, 9, 10, 13]:
+                        # We cannot know if host exists (port is probably filtered, aka silently dropped)
                         pass
-                        # Impossible de savoir si le host existe
-                        #self.logger.info(host + ":" + str(dstPort) + " is filtered (silently dropped).")
 
         return None

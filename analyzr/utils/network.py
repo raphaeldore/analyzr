@@ -51,9 +51,9 @@ def get_networks_interfaces() -> dict:
 
         ip_network = IPNetwork(cidr)
 
-        if interface != conf.iface:
-            # Skipping because scapy currently doesn't support arping on non-primary network interfaces
-            continue
+        # if interface != conf.iface:
+        #     # Skipping because scapy currently doesn't support arping on non-primary network interfaces
+        #     continue
 
         if ip_network is None:
             continue
@@ -73,3 +73,13 @@ def resolve_ip(ip):
     if host is not None:
         host = host[0]
     return host
+
+class CommonTCPFlags:
+    NULL = 0x00
+    SYN = 0x02
+    ACK = 0x10
+    SYN_ACK = 0x12
+    #RST = 0
+    RST_ACK = 0x14
+    FIN = 0x01
+    FIN_ACK = 0x11
