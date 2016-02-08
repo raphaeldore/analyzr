@@ -6,12 +6,11 @@ This modules allows to scan the network of the current host..
 """
 import errno
 
-from netaddr import IPNetwork, IPAddress, EUI, NotRegisteredError
+from netaddr import IPAddress, EUI
 from scapy.all import *
 from scapy.layers.inet import IP, TCP, ICMP, UDP
 from scapy.layers.l2 import arping
 
-from .utils.network import to_CIDR_notation
 from .core.entities import NetworkNode
 from .portscanthread import PortScanThread
 from .topports import topports
@@ -21,40 +20,15 @@ logging.basicConfig(format='%(asctime)s %(levelname)-5s %(message)s', datefmt='%
 logger = logging.getLogger(__name__)
 
 
-class NetworkScanner:
-    def __init__(self):
+class NetworkDiscoverer():
+    def __init__(self, scanners : list()):
+        self.scanners = scanners
         self.host_ip_address = ""
-        self.networks_interfaces = {}
         self.live_network_hosts = dict()  # (network --> (ip --> mac, ip --> mac, ip --> mac))
-        self.__read_networks_interfaces()
 
-    def __read_networks_interfaces(self):
-        for network, netmask, gateway, interface, address in scapy.config.conf.route.routes:
-
-            # skip loopback network and default gw
-            if network == 0 or interface == 'lo' or address == '127.0.0.1' or address == '0.0.0.0':
-                continue
-
-            if netmask <= 0 or netmask == 0xFFFFFFFF:
-                continue
-
-            cidr = to_CIDR_notation(network, netmask)
-
-            if not cidr:
-                continue
-
-            ip_network = IPNetwork(cidr)
-
-            if interface != scapy.config.conf.iface:
-                logger.warn(
-                    "Skipping %s because scapy currently doesn't support arping on non-primary network interfaces",
-                    ip_network.cidr)
-                continue
-
-            if ip_network is None:
-                continue
-
-            self.networks_interfaces[interface] = ip_network
+    def discover(self):
+        for scanner in self.scanners:
+            scanner.scan()
 
     def port_ping_scan(self):
         try:

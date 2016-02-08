@@ -1,6 +1,5 @@
 import sys
 
-import analyzr.main
 from analyzr.utils.admin import isUserAdmin
 
 if __name__ == "__main__":
@@ -15,4 +14,5 @@ if __name__ == "__main__":
             print(str(re))
             sys.exit(1)
 
-    analyzr.main.execute()
+    from analyzr.main import execute
+    execute()
