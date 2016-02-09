@@ -6,8 +6,9 @@ class Configuration:
     debug = True
     passivescan = True
     # TODO : Non fonctionnel pour l'instant. Changer à True lorsque fonctionnel
-    activescan = False
+    activescan = True
     timeout = 10
     arping_timeout = 1
+    fastTCP = False
 
 conf = Configuration()

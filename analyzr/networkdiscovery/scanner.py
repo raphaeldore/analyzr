@@ -15,6 +15,7 @@ class Scanner(AnalyzrModule):
         self.scan_results = dict()
         self.config.update({"networks_interfaces": conf.networks_interfaces.items()})
         self.config.update({"timeout": conf.timeout})
+        self.config.update({"fastTCP": conf.fastTCP})
 
     def scan(self):
         """
