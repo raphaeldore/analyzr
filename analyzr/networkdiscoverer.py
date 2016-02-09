@@ -4,24 +4,19 @@ analyzr.NetworkScanner
 
 This modules allows to scan the network of the current host..
 """
-import errno
 
-from netaddr import IPAddress, EUI
 from scapy.all import *
-from scapy.layers.inet import IP, TCP, ICMP, UDP
-from scapy.layers.l2 import arping
+from scapy.layers.inet import IP, UDP
 
-from .core.entities import NetworkNode
 from .portscanthread import PortScanThread
 from .topports import topports
-
 
 logging.basicConfig(format='%(asctime)s %(levelname)-5s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
 class NetworkDiscoverer():
-    def __init__(self, scanners : list()):
+    def __init__(self, scanners: list()):
         self.scanners = scanners
         self.host_ip_address = ""
         self.live_network_hosts = dict()  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
@@ -37,8 +32,6 @@ class NetworkDiscoverer():
             for network, network_nodes in scanner.scan_results.items():
                 tmp = self.live_network_hosts.setdefault(network, set())
                 tmp.update(network_nodes)
-
-
 
     def find_hops(self):
         iphops = dict()
