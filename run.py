@@ -1,8 +1,8 @@
-import sys
 import argparse
+import sys
 
-from analyzr.core.config import conf
 from analyzr.utils.admin import isUserAdmin
+from core import config
 
 
 def parse_args():
@@ -28,7 +28,7 @@ if __name__ == "__main__":
             print(str(re))
             sys.exit(1)
 
-    conf.fast_scan = args.fastTCP
+    config.fastTCP = args.fastTCP
 
     from analyzr.main import execute
 

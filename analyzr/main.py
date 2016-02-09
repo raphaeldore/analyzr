@@ -1,7 +1,7 @@
-from analyzr.core.config import conf
 from analyzr.networkdiscoverer import NetworkDiscoverer
 from analyzr.networkdiscovery import active
 from analyzr.networkdiscovery import passive
+from core import config
 
 
 def read_config():
@@ -23,10 +23,10 @@ def execute():
 
     scanners = list()
 
-    if conf.activescan:
+    if config.activescan:
         for cls in classes_in_module(active):
             scanners.append(cls())
-    if conf.passivescan:
+    if config.passivescan:
         for cls in classes_in_module(passive):
             scanners.append(cls())
 

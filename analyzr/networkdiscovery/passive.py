@@ -6,6 +6,7 @@ from netaddr import IPAddress, EUI
 from analyzr.core.entities import NetworkNode
 from analyzr.networkdiscovery.scanner import Scanner
 from analyzr.utils.network import resolve_ip
+from core import config
 
 
 class SnifferDiscovery(Scanner):
@@ -17,10 +18,9 @@ class SnifferDiscovery(Scanner):
             from scapy.sendrecv import sniff
 
             self.logger.info("Executing passive sniffer scan...")
-            for interface, network in self.config["networks_interfaces"]:
+            for interface, network in config.interfaces_networks.items():
                 discovered_hosts = set()
-
-                ans = sniff(timeout=self.config["timeout"], iface=interface)
+                ans = sniff(timeout=config.snifferdiscovery_timeout, iface=interface)
                 for i in ans:
                     from scapy.layers.inet import IP
                     from scapy.layers.l2 import ARP

@@ -2,6 +2,8 @@ import math
 import socket
 import struct
 from enum import Enum
+from scapy.all import conf
+from netaddr import IPNetwork, IPAddress
 
 
 def long2netmask(arg):
@@ -30,11 +32,9 @@ def to_CIDR_notation(bytes_network, bytes_netmask) -> str:
     return net
 
 
-def get_networks_interfaces() -> dict:
-    from scapy.all import conf
-    from netaddr import IPNetwork
-
-    networks_interfaces = dict()
+def get_local_interfaces_networks() -> (dict, dict):
+    interfaces_networks = dict()
+    networks_ips = dict()
 
     for network, netmask, gateway, interface, address in conf.route.routes:
 
@@ -52,16 +52,13 @@ def get_networks_interfaces() -> dict:
 
         ip_network = IPNetwork(cidr)
 
-        # if interface != conf.iface:
-        #     # Skipping because scapy currently doesn't support arping on non-primary network interfaces
-        #     continue
-
         if ip_network is None:
             continue
 
-        networks_interfaces[interface] = ip_network
+        interfaces_networks[interface] = ip_network
+        networks_ips[ip_network] = IPAddress(address)
 
-    return networks_interfaces
+    return interfaces_networks, networks_ips
 
 
 def resolve_ip(ip):
