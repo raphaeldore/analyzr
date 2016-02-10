@@ -3,10 +3,10 @@ import socket
 import errno
 from netaddr import IPAddress, EUI
 
+from analyzr.core import config
 from analyzr.core.entities import NetworkNode
 from analyzr.networkdiscovery.scanner import Scanner
 from analyzr.utils.network import resolve_ip
-from core import config
 
 
 class SnifferDiscovery(Scanner):
