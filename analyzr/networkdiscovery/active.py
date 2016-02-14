@@ -1,18 +1,19 @@
+from scapy.all import *
+
 import errno
 import random
 import socket
 
-import scapy
 from netaddr import IPAddress, EUI
 from scapy.layers.inet import IP, TCP, ICMP
 from scapy.layers.l2 import ARP, Ether
 from scapy.sendrecv import sr1, sr
 
+from analyzr.core import config
 from analyzr.core.entities import NetworkNode
 from analyzr.networkdiscovery.scanner import Scanner
 from analyzr.topports import topports
 from analyzr.utils.network import resolve_ip, TCPFlag
-from core import config
 
 
 class ArpPing(Scanner):
@@ -92,6 +93,8 @@ class TCPPing(Scanner):
                 #ans, unans = sr(IP(dst=str(network)) / TCP(dport=80, flags="S"), iface=interface, timeout=10)
                 #ans, unnans = sr(IP(dst=str(network))/TCP(dport=80, flags="S"), timeout=5) #verbose=False
 
+
+
                 responses = []
                 # On loop dans toutes les addresses du réseau
                 for addr in list(network):
@@ -120,6 +123,10 @@ class TCPPing(Scanner):
                 self.logger.error("%s. Did you run as root?", e.strerror)
             else:
                 raise
+
+    def _portScan2(self):
+        pass
+
 
     def _slowScan(self):
         self.logger.info("Executing TCP ping scan (slow version)...")

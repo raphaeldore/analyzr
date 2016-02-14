@@ -1,8 +1,8 @@
 import argparse
 import sys
 
+from analyzr.core import config
 from analyzr.utils.admin import isUserAdmin
-from core import config
 
 
 def parse_args():

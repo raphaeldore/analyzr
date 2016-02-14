@@ -1,7 +1,7 @@
+from analyzr.core import config
 from analyzr.networkdiscoverer import NetworkDiscoverer
 from analyzr.networkdiscovery import active
 from analyzr.networkdiscovery import passive
-from core import config
 
 
 def read_config():
