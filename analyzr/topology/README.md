@@ -1,10 +1,10 @@
-Topologie réseau
+Topologie rÃ©seau
 ================
 
-La topologie du réseau va être modélisée à partir d'un graphe. Chaque élément du réseau
+La topologie du rÃ©seau va Ãªtre modÃ©lisÃ©e Ã  partir d'un graphe. Chaque Ã©lÃ©ment du rÃ©seau
 sera un noeud dans le graphe.
 
-Terminologie tirée de https://wiki.onosproject.org/display/ONOS/Representing+Networks
+Terminologie tirÃ©e de https://wiki.onosproject.org/display/ONOS/Representing+Networks
 
 ## Model Object Types
 
