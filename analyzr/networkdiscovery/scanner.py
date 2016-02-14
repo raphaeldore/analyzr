@@ -1,4 +1,6 @@
 import abc
+import logging
+
 from analyzr.core.entities import AnalyzrModule
 
 
@@ -10,6 +12,7 @@ class Scanner(AnalyzrModule):
 
     def __init__(self):
         super(Scanner, self).__init__()
+        self.logger = logging.getLogger(__name__)
         self.scan_results = dict()
 
     def scan(self):

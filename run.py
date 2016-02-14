@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 
 from analyzr.core import config
@@ -15,17 +16,18 @@ def parse_args():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
+    logger = logging.getLogger("analyzr")
 
     args = parse_args()
     if not args.force:
         try:
             # perm check
             if not isUserAdmin():
-                print("\033[31m [-] Please run as root. \033[0m")
+                logger.error("\033[31m [-] Please run as root. \033[0m")
                 sys.exit(1)
         except RuntimeError as re:
-            print(str(re))
+            logger.error(str(re))
             sys.exit(1)
 
     config.fastTCP = args.fastTCP
@@ -33,3 +35,7 @@ if __name__ == "__main__":
     from analyzr.main import execute
 
     execute()
+
+
+if __name__ == "__main__":
+    main()

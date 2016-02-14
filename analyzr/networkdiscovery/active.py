@@ -15,10 +15,13 @@ from analyzr.networkdiscovery.scanner import Scanner
 from analyzr.topports import topports
 from analyzr.utils.network import resolve_ip, TCPFlag
 
+logger = logging.getLogger(__name__)
 
 class ArpPing(Scanner):
     def __init__(self):
         super(ArpPing, self).__init__()
+        self.logger = logging.getLogger(__name__)
+
 
     def scan(self):
         self.logger.info("Executing arp ping scan...")

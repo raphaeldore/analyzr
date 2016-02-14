@@ -11,7 +11,6 @@ from scapy.layers.inet import IP, UDP
 from .portscanthread import PortScanThread
 from .topports import topports
 
-logging.basicConfig(format='%(asctime)s %(levelname)-5s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 

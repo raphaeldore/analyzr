@@ -3,7 +3,6 @@ import logging
 
 from netaddr import IPAddress, EUI
 
-logging.basicConfig(format='%(asctime)s %(levelname)-5s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
 
 class NetworkNode:
     """
@@ -23,10 +22,8 @@ class NetworkNode:
 
 
 class AnalyzrModule(object):
-
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.config = {}
-
