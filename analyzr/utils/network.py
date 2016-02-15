@@ -2,8 +2,10 @@ import math
 import socket
 import struct
 from enum import Enum
-from scapy.all import conf
+from scapy.all import conf, logging
 from netaddr import IPNetwork, IPAddress
+
+logger = logging.getLogger(__name__)
 
 
 def long2netmask(arg):
@@ -36,27 +38,26 @@ def get_local_interfaces_networks() -> (dict, dict):
     interfaces_networks = dict()
     networks_ips = dict()
 
-    for network, netmask, gateway, interface, address in conf.route.routes:
+    logger.info("Finding local interfaces connected to networks (Ex: wifi, ethernet, etc).")
+    for network_int, netmask_int, gateway, interface, address in conf.route.routes:
 
         # skip loopback network and default gw
-        if network == 0 or interface == 'lo' or address == '127.0.0.1' or address == '0.0.0.0':
+        if network_int == 0 or interface == 'lo' or address == '127.0.0.1' or address == '0.0.0.0':
             continue
 
-        if netmask <= 0 or netmask == 0xFFFFFFFF:
+        if netmask_int <= 0 or netmask_int == 0xFFFFFFFF:
             continue
 
-        cidr = to_CIDR_notation(network, netmask)
+        netmask = long2netmask(netmask_int)
+        network = IPNetwork("0.0.0.0/0")
+        network.value = network_int
+        network.prefixlen = netmask
 
-        if not cidr:
-            continue
+        if network.prefixlen < 16:
+            logger.info("Skipping {0:s} because mask is too large (Too many hosts).".format(network))
 
-        ip_network = IPNetwork(cidr)
-
-        if ip_network is None:
-            continue
-
-        interfaces_networks[interface] = ip_network
-        networks_ips[ip_network] = IPAddress(address)
+        interfaces_networks[interface] = network
+        networks_ips[network] = IPAddress(address)
 
     return interfaces_networks, networks_ips
 

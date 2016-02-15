@@ -4,6 +4,7 @@ import sys
 
 from analyzr.core import config
 from analyzr.utils.admin import isUserAdmin
+from core.config import init_config
 
 
 def parse_args():
@@ -19,6 +20,7 @@ def parse_args():
 def main():
     logger = logging.getLogger("analyzr")
 
+    init_config()
     logger.setLevel(logging.DEBUG if config.debug else logging.INFO)
 
     args = parse_args()
