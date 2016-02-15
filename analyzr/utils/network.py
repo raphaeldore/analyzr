@@ -122,6 +122,10 @@ class ICMPCode(Enum):
     IP_HEADER_BAD           = 0
     REQUIRED_OPTION_MISSING = 1
 
+class ScapyTCPFlag:
+    SYN = "S"
+    ACK = "A"
+    RST = "R"
 
 class TCPFlag(Enum):
     NULL    = 0x00

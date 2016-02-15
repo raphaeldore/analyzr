@@ -20,6 +20,10 @@ class NetworkNode:
     def __hash__(self):
         return self.ip.__hash__()
 
+    def __str__(self):
+        return "{ip} - {mac} - {host}".format(ip=str(self.ip), mac=str(self.mac),
+                                              host=self.host if self.host else "Unknown host")
+
 
 class AnalyzrModule(object):
     __metaclass__ = abc.ABCMeta

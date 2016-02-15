@@ -1,14 +1,17 @@
-from netaddr import IPAddress, EUI
+import threading
+from queue import Queue
+
+from netaddr import EUI, IPAddress
 from scapy.all import *
 from scapy.layers.inet import IP, TCP, ICMP
-from scapy.layers.l2 import ARP, Ether
-from scapy.sendrecv import sr1, sr
+from scapy.layers.l2 import arping
+from scapy.sendrecv import sr1
 
 from analyzr.core import config
 from analyzr.core.entities import NetworkNode
 from analyzr.networkdiscovery.scanner import Scanner
 from analyzr.topports import topports
-from analyzr.utils.network import resolve_ip, TCPFlag
+from analyzr.utils.network import resolve_ip, TCPFlag, ScapyTCPFlag
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +30,7 @@ class ArpPing(Scanner):
 
                 self.logger.info("Executing arp ping scan on network {0:s}...".format(str(network)))
                 discovered_hosts = set()
-                ans, unans = scapy.layers.l2.arping(str(network), iface=interface, timeout=1, verbose=False)
+                ans, unans = arping(str(network), iface=interface, timeout=1, verbose=False)
                 for s, r in ans.res:
                     node = NetworkNode()
                     node.ip = IPAddress(r[ARP].psrc)
@@ -59,14 +62,24 @@ class ICMPPing(Scanner):
 
                 self.logger.info("Executing ICMP ping scan on network {0:s}...".format(str(network)))
                 discovered_hosts = set()
-                ans, unans = sr(IP(dst=str(network)) / ICMP(), iface=interface, timeout=2)
-                self.logger.debug(u"Got {0:d} answers.".format(len(ans)))
-                for s, r in ans.res:
-                    node = NetworkNode()
-                    node.ip = IPAddress(r[IP].src)
-                    node.mac = EUI(r[Ether].src)
-                    node.host = resolve_ip(r[Ether].src)
-                    discovered_hosts.add(node)
+
+                ips_queue = Queue(network.size)
+                for thread_id in range(config.num_ping_threads):
+                    t = threading.Thread(
+                        target=self._ping,
+                        args=(ips_queue, interface, discovered_hosts,),
+                        name='worker-{}'.format(thread_id),
+                        daemon=True
+                    )
+                    t.start()
+
+                # populate the queue
+                [ips_queue.put(host_ip) for host_ip in network.iter_hosts()]
+
+                self.logger.debug('*** main thread waiting')
+                ips_queue.join()
+
+                self.logger.debug(u"Got {0:d} answers.".format(len(discovered_hosts)))
 
                 self.scan_results[network] = discovered_hosts
         except socket.error as e:
@@ -76,6 +89,22 @@ class ICMPPing(Scanner):
                 raise
 
         self.logger.info("ICMP ping scan done. Found %d unique hosts.", self.number_of_hosts_found)
+
+    def _ping(self, hosts: Queue, interface: str, results: set):
+        self.logger.debug("{}: Starting ICMP ping thread.".format(threading.current_thread().name))
+        while True:
+            host = hosts.get()  # type: IPAddress
+            host_str = str(host)
+
+            res = sr1(IP(dst=host_str) / ICMP(), iface=interface, timeout=0.1, verbose=False)
+            if res:
+                node = NetworkNode()
+                node.ip = host
+                node.mac = EUI(res.src)
+                node.host = resolve_ip(res[IP].src)
+                results.add(node)
+
+            hosts.task_done()
 
 
 class TCPSYNPing(Scanner):
@@ -87,6 +116,11 @@ class TCPSYNPing(Scanner):
             self.portstoscan = topports
 
     def scan(self):
+        """
+        Attempts to identify if a host exists by sending a TCP SYN packet to a port. If we receive a SYN/ACK or a RST
+        packet we know the host exists and we stop searching. This is not a port scanner. This does not find opened
+        ports (it stops to search at the first sign that the host exists).
+        """
         try:
             for interface, network in config.interfaces_networks.items():
                 if network.is_private() and not config.scan_local_network_as_public:
@@ -103,18 +137,23 @@ class TCPSYNPing(Scanner):
 
                 discovered_hosts = set()
 
-                srcPort = random.randint(1025, 65534)
-                ans, unans = sr(IP(dst=str(network)) / TCP(sport=srcPort, dport=self.portstoscan, flags="S"),
-                                iface=interface, timeout=10, verbose=False)
+                ips_queue = Queue(network.size)
+                for thread_id in range(config.num_ping_threads):
+                    t = threading.Thread(
+                        target=self._port_ping,
+                        args=(ips_queue, interface, discovered_hosts,),
+                        name='worker-{}'.format(thread_id),
+                        daemon=True
+                    )
+                    t.start()
 
-                self.logger.debug(u"Got {0:d} answers.".format(len(ans)))
+                # populate the queue
+                [ips_queue.put(host_ip) for host_ip in network.iter_hosts()]
 
-                for s, r in ans.res:
-                    node = NetworkNode()
-                    node.ip = IPAddress(r[IP].src)
-                    node.mac = EUI(r.src)
-                    node.host = resolve_ip(r[IP].src)
-                    discovered_hosts.add(node)
+                self.logger.debug('*** main thread waiting')
+                ips_queue.join()
+
+                self.logger.debug(u"Got {0:d} answers.".format(len(discovered_hosts)))
 
                 self.scan_results[network] = discovered_hosts
         except socket.error as e:
@@ -125,30 +164,37 @@ class TCPSYNPing(Scanner):
 
         self.logger.info("TCP SYN ping scan done. Found %d unique hosts.", self.number_of_hosts_found)
 
-    def _portScan(self, host, ports, interface):
-        # Send SYN with random Src Port for each Dst port
-        for dstPort in ports:
-            srcPort = random.randint(1025, 65534)
-            resp = sr1(IP(dst=host) / TCP(sport=srcPort, dport=dstPort, flags="S"), timeout=1, verbose=0,
-                       iface=interface)
-            if resp is None:
-                # No response... we cannot know if host exists (port is probably filtered, aka silently dropped).
-                # Let's try the next port.
-                continue
-            elif resp.haslayer(TCP):
-                if resp.getlayer(TCP).flags == (TCPFlag.SYN | TCPFlag.ACK) or resp.getlayer(
-                        TCP).flags == (TCPFlag.RST | TCPFlag.ACK):
-                    send_rst = sr(IP(dst=host) / TCP(sport=srcPort, dport=dstPort, flags="R"), timeout=1, verbose=0,
-                                  iface=interface)
-                    # We know the port is closed or opened (we got a response), so we deduce that the host exists
-                    node = NetworkNode()
-                    node.ip = IPAddress(resp[IP].src)
-                    node.mac = EUI(resp.src)
-                    node.host = resolve_ip(resp[IP].src)
-                    return NetworkNode
-                elif resp.haslayer(ICMP):
-                    # We cannot determine if host exists (port is probably filtered, aka silently dropped).
-                    # Let's try the next port.
-                    continue
+    def _port_ping(self, hosts: Queue, interface: str, results: set):
+        self.logger.debug("{}: Starting TCP SYN ping thread.".format(threading.current_thread().name))
 
-        return None
+        while True:
+            host = hosts.get()  # type: IPAddress
+            host_str = str(host)
+
+            # Send SYN with random Src Port for each Dst port
+            for dstPort in self.portstoscan:
+                srcPort = random.randint(1025, 65534)
+                resp = sr1(IP(dst=host_str) / TCP(sport=srcPort, dport=dstPort, flags=ScapyTCPFlag.SYN), timeout=1,
+                           verbose=False,
+                           iface=interface)
+                if resp and resp.haslayer(TCP):
+                    if resp[TCP].flags == (TCPFlag.SYN | TCPFlag.ACK) or resp[TCP].flags == (TCPFlag.RST | TCPFlag.ACK):
+                        # Send Reset packet (RST)
+                        send(IP(dst=host_str) / TCP(sport=srcPort, dport=dstPort, flags=ScapyTCPFlag.RST),
+                             iface=interface, verbose=False)
+
+                        # We know the port is closed or opened (we got a response), so we deduce that the host exists
+                        node = NetworkNode()
+                        node.ip = host
+                        node.mac = EUI(resp.src)
+                        node.host = resolve_ip(resp[IP].src)
+                        results.add(node)
+
+                        self.logger.debug(
+                            "Found a live host by pinging port {port_nbr}: {live_host}.".format(port_nbr=dstPort,
+                                                                                                live_host=str(node)))
+
+                        # We don't need to test the other ports. We know the host exists.
+                        break
+
+            hosts.task_done()

@@ -7,7 +7,7 @@ fastTCP = True
 scan_local_network_as_public = False
 debug = True
 snifferdiscovery_timeout = 10 # Scan for x secondes
-num_ping_threads = 8
+num_ping_threads = 16
 
 
 # class AnalyzrConfig():

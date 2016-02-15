@@ -53,9 +53,7 @@ class NetworkDiscoverer():
         for network, network_nodes in self.live_network_hosts.items():
             print("Live hosts in network {0:s}".format(str(network)))
             for network_node in network_nodes:
-                print(u'\t{0:20s}{1:20s}{2:20s}'.format(str(network_node.ip),
-                                                        str(network_node.mac),
-                                                        str(network_node.host)))
+                print(network_node)
 
     def scan_found_network_nodes_for_opened_ports(self):
         count = sum(len(v) for v in self.live_network_hosts.values())
