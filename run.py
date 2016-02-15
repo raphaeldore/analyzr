@@ -11,13 +11,15 @@ def parse_args():
     parser.add_argument("-f", "--force",
                         help="Force run the application. Even if not root. Warning : things most probably won't work.",
                         action='store_true', default=False)
-    parser.add_argument("-ftcp", "--fastTCP", help="Makes TCPPing only ping on port 80.", action="store_true",
+    parser.add_argument("-ftcp", "--fastTCP", help="Makes TCPSYNPing only ping on port 80.", action="store_true",
                         default=False)
     return parser.parse_args()
 
 
 def main():
     logger = logging.getLogger("analyzr")
+
+    logger.setLevel(logging.DEBUG if config.debug else logging.INFO)
 
     args = parse_args()
     if not args.force:

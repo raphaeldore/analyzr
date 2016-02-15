@@ -4,8 +4,10 @@ interfaces_networks, networks_ips = get_local_interfaces_networks()
 passivescan = True
 activescan = True
 fastTCP = True
+scan_local_network_as_public = False
 debug = True
 snifferdiscovery_timeout = 10 # Scan for x secondes
+num_ping_threads = 8
 
 
 # class AnalyzrConfig():

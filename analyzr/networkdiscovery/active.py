@@ -1,10 +1,5 @@
-from scapy.all import *
-
-import errno
-import random
-import socket
-
 from netaddr import IPAddress, EUI
+from scapy.all import *
 from scapy.layers.inet import IP, TCP, ICMP
 from scapy.layers.l2 import ARP, Ether
 from scapy.sendrecv import sr1, sr
@@ -17,16 +12,20 @@ from analyzr.utils.network import resolve_ip, TCPFlag
 
 logger = logging.getLogger(__name__)
 
+
 class ArpPing(Scanner):
     def __init__(self):
         super(ArpPing, self).__init__()
-        self.logger = logging.getLogger(__name__)
-
 
     def scan(self):
-        self.logger.info("Executing arp ping scan...")
         try:
             for interface, network in config.interfaces_networks.items():
+                if not network.is_private():
+                    self.logger.info(
+                        "Skipping arp ping scan on network {0:s} because it's a public network".format(str(network)))
+                    continue
+
+                self.logger.info("Executing arp ping scan on network {0:s}...".format(str(network)))
                 discovered_hosts = set()
                 ans, unans = scapy.layers.l2.arping(str(network), iface=interface, timeout=1, verbose=False)
                 for s, r in ans.res:
@@ -46,79 +45,28 @@ class ArpPing(Scanner):
         self.logger.info("Arp ping scan done. Found %d unique hosts.", self.number_of_hosts_found)
 
 
-# # TODO: This is very slooooow
-# class ICMPPing(Scanner):
-#     def __init__(self):
-#         super(ICMPPing, self).__init__()
-#
-#     def scan(self):
-#         self.logger.info("Executing ICMP ping scan...")
-#         try:
-#             for interface, network in config.interfaces_networks.items():
-#                 discovered_hosts = set()
-#                 ans, unans = sr(IP(dst=str(network)) / ICMP(), iface=interface, timeout = 2)
-#                 for s, r in ans.res:
-#                     node = NetworkNode()
-#                     node.ip = IPAddress(r[IP].src)
-#                     node.mac = EUI(r[Ether].src)
-#                     node.host = resolve_ip(r[Ether].src)
-#                     discovered_hosts.add(node)
-#
-#                 self.scan_results[network] = discovered_hosts
-#         except socket.error as e:
-#             if e.errno == socket.errno.EPERM:  # Operation not permitted
-#                 self.logger.error("%s. Did you run as root?", e.strerror)
-#             else:
-#                 raise
-#
-#         self.logger.info("ICMP ping scan done. Found %d unique hosts.", self.number_of_hosts_found)
-
-
-# TODO: This is very slooooow
-class TCPPing(Scanner):
+class ICMPPing(Scanner):
     def __init__(self):
-        super(TCPPing, self).__init__()
+        super(ICMPPing, self).__init__()
 
     def scan(self):
-        if config.fastTCP:
-            self._fastScan()
-        else:
-            self._slowScan()
-
-        self.logger.info("TCP ping scan done. Found %d unique hosts.", self.number_of_hosts_found)
-
-    def _fastScan(self):
-        self.logger.info("Executing TCP ping scan (fast version)...")
-        self.logger.info("Scanning port 80.")
         try:
             for interface, network in config.interfaces_networks.items():
+                if network.is_private() and not config.scan_local_network_as_public:
+                    self.logger.info(
+                        "Skipping ICMP ping scan on network {0:s} because it's a private network.".format(str(network)))
+                    continue
+
+                self.logger.info("Executing ICMP ping scan on network {0:s}...".format(str(network)))
                 discovered_hosts = set()
-                #ans, unans = sr(IP(dst=str(network)) / TCP(dport=80, flags="S"), iface=interface, timeout=10)
-                #ans, unnans = sr(IP(dst=str(network))/TCP(dport=80, flags="S"), timeout=5) #verbose=False
-
-
-
-                responses = []
-                # On loop dans toutes les addresses du réseau
-                for addr in list(network):
-                    response = sr1(IP(dst=str(addr))/TCP(dport=80, flags="S"),verbose=False, timeout=0.2)
-                    if response:
-                        responses.append(response)
-                    #responses += [response] if response is not None else []
-
-                for response in responses:
+                ans, unans = sr(IP(dst=str(network)) / ICMP(), iface=interface, timeout=2)
+                self.logger.debug(u"Got {0:d} answers.".format(len(ans)))
+                for s, r in ans.res:
                     node = NetworkNode()
-                    node.ip = IPAddress(response[IP].src)
-                    node.mac = EUI(response.src)
-                    node.host = resolve_ip(response[IP].src)
+                    node.ip = IPAddress(r[IP].src)
+                    node.mac = EUI(r[Ether].src)
+                    node.host = resolve_ip(r[Ether].src)
                     discovered_hosts.add(node)
-
-                # for s, r in ans.res:
-                #     node = NetworkNode()
-                #     node.ip = IPAddress(r[IP].src)
-                #     node.mac = EUI(r.src)
-                #     node.host = resolve_ip(r[IP].src)
-                #     discovered_hosts.add(node)
 
                 self.scan_results[network] = discovered_hosts
         except socket.error as e:
@@ -127,31 +75,55 @@ class TCPPing(Scanner):
             else:
                 raise
 
-    def _portScan2(self):
-        pass
+        self.logger.info("ICMP ping scan done. Found %d unique hosts.", self.number_of_hosts_found)
 
 
-    def _slowScan(self):
-        self.logger.info("Executing TCP ping scan (slow version)...")
-        self.logger.info("Scanning ports %s.", str(topports).strip("[]"))
+class TCPSYNPing(Scanner):
+    def __init__(self):
+        super(TCPSYNPing, self).__init__()
+        if config.fastTCP:
+            self.portstoscan = [80]
+        else:
+            self.portstoscan = topports
+
+    def scan(self):
         try:
             for interface, network in config.interfaces_networks.items():
-                discovered_hosts = set()
-                # Toutes les addresses possibles du réseau
-                for addr in list(network):
-                    if addr == network.broadcast:
-                        continue
+                if network.is_private() and not config.scan_local_network_as_public:
+                    self.logger.info(
+                        "Skipping TCP ACK Ping on {0:s} because it's a private network.".format(str(network)))
+                    continue
 
-                    discovered_host = self._portScan(str(addr), topports, interface)
-                    if discovered_host:
-                        discovered_hosts.add(discovered_host)
+                if config.fastTCP:
+                    self.logger.info("Executing TCP SYN ping scan (fast version) on {0:s}...".format(str(network)))
+                else:
+                    self.logger.info("Executing TCP SYN ping scan (slow version) on {0:s}...".format(str(network)))
+
+                self.logger.info("Scanning ports %s.", str(self.portstoscan).strip("[]"))
+
+                discovered_hosts = set()
+
+                srcPort = random.randint(1025, 65534)
+                ans, unans = sr(IP(dst=str(network)) / TCP(sport=srcPort, dport=self.portstoscan, flags="S"),
+                                iface=interface, timeout=10, verbose=False)
+
+                self.logger.debug(u"Got {0:d} answers.".format(len(ans)))
+
+                for s, r in ans.res:
+                    node = NetworkNode()
+                    node.ip = IPAddress(r[IP].src)
+                    node.mac = EUI(r.src)
+                    node.host = resolve_ip(r[IP].src)
+                    discovered_hosts.add(node)
 
                 self.scan_results[network] = discovered_hosts
         except socket.error as e:
-            if e.errno == errno.EPERM:  # Operation not permitted
+            if e.errno == socket.errno.EPERM:  # Operation not permitted
                 self.logger.error("%s. Did you run as root?", e.strerror)
             else:
                 raise
+
+        self.logger.info("TCP SYN ping scan done. Found %d unique hosts.", self.number_of_hosts_found)
 
     def _portScan(self, host, ports, interface):
         # Send SYN with random Src Port for each Dst port
