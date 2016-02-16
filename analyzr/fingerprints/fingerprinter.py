@@ -26,7 +26,7 @@ class Fingerprinter(AnalyzrModule):
 
 class EttercapFingerprinter(Fingerprinter):
     def __init__(self, os_fingerprint_file_name: str):
-        super().__init__("Etthercap Fingerprinter", os_fingerprint_file_name)
+        super().__init__("Ettercap Fingerprinter", os_fingerprint_file_name)
 
     def load_fingerprints(self):
         with(self.os_fingerprint_file_name, "r") as fingerprint_db:
