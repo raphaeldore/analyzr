@@ -5,7 +5,7 @@ from scapy import packet
 from scapy.layers.inet import IP, TCP, TCPOptionsField
 
 from analyzr.core.entities import AnalyzrModule
-from utils.file import open_with_error
+from analyzr.utils.file import open_with_error
 
 
 class NodeFingerprint:
@@ -53,7 +53,7 @@ class EttercapFingerprinter(Fingerprinter):
     OS  : an ascii string representing the OS
     """
 
-    # Does not contain OS, because OS is the key of the fingerprints dictionary
+    # Does not contain OS, because a fingerprint can be linked to multiple operating systems.
     EttercapFingerprint = collections.namedtuple("EttercapFingerprint",
                                                  ['WWWW',
                                                   'MSS',
