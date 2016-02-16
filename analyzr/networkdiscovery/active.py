@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class ArpPing(Scanner):
     def __init__(self):
-        super(ArpPing, self).__init__()
+        super(ArpPing, self).__init__(name="Arp Ping Scanner")
 
     def scan(self):
         try:
@@ -50,7 +50,7 @@ class ArpPing(Scanner):
 
 class ICMPPing(Scanner):
     def __init__(self):
-        super(ICMPPing, self).__init__()
+        super(ICMPPing, self).__init__("ICMP Ping Scanner")
 
     def scan(self):
         try:
@@ -109,7 +109,7 @@ class ICMPPing(Scanner):
 
 class TCPSYNPing(Scanner):
     def __init__(self):
-        super(TCPSYNPing, self).__init__()
+        super(TCPSYNPing, self).__init__("TCP SYN Ping Scanner")
         if config.fastTCP:
             self.portstoscan = [80]
         else:

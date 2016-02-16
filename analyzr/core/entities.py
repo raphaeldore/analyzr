@@ -28,6 +28,7 @@ class NetworkNode:
 class AnalyzrModule(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self):
+    def __init__(self, name: str):
+        self.name = name
         self.logger = logging.getLogger(__name__)
         self.config = {}
