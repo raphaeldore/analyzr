@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 class NetworkDiscoverer():
-    def __init__(self, scanners: list()):
+    def __init__(self, scanners: list, fingerprinters: list):
         self.scanners = scanners
+        self.fingerprinters = fingerprinters
         self.host_ip_address = ""
         self.live_network_hosts = dict()  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
 

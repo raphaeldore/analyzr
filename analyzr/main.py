@@ -1,7 +1,15 @@
+import logging
+import os
+
+from os.path import isfile
+
 from analyzr.core import config
 from analyzr.networkdiscoverer import NetworkDiscoverer
 from analyzr.networkdiscovery import active
 from analyzr.networkdiscovery import passive
+from analyzr.fingerprints import fingerprinter, EttercapFingerprinter
+
+logger = logging.getLogger(__name__)
 
 
 def read_config():
@@ -22,6 +30,22 @@ def execute():
     read_config()
 
     scanners = list()
+    fingerprinters = list()
+
+    # for cls in classes_in_module(fingerprinter):
+    #    fingerprinters.append(cls())
+
+    dir = os.path.dirname(__file__)
+
+    fingerprinters.append(EttercapFingerprinter(os.path.join(dir, "resources", "etter.finger.os")))
+
+    for fingerprinter in fingerprinters:
+        try:
+            fingerprinter.load_fingerprints()
+        except FileNotFoundError:
+            logger.error(
+                "{fingerprinter} : Unable to load {fingerprints}".format(fingerprinter=fingerprinter.name,
+                                                                         fingerprints=fingerprinter.os_fingerprint_file_name))
 
     if config.activescan:
         for cls in classes_in_module(active):
@@ -30,13 +54,13 @@ def execute():
         for cls in classes_in_module(passive):
             scanners.append(cls())
 
-    networkscanner = NetworkDiscoverer(scanners)
+    networkscanner = NetworkDiscoverer(scanners, fingerprinters)
 
     networkscanner.discover()
     networkscanner.pretty_print_ips()
 
-    #networkscanner.scan_and_find_network_nodes_on_networks()
-    #networkscanner.pretty_print_ips()
+    # networkscanner.scan_and_find_network_nodes_on_networks()
+    # networkscanner.pretty_print_ips()
     # networkscanner.fingerprints()
     # networkscanner.find_hops()
 
