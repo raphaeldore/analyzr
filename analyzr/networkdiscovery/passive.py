@@ -11,7 +11,7 @@ from analyzr.utils.network import resolve_ip
 
 class SnifferDiscovery(Scanner):
     def __init__(self):
-        super(SnifferDiscovery, self).__init__()
+        super(SnifferDiscovery, self).__init__("Passive sniffer")
 
     def scan(self):
         try:
