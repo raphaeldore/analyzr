@@ -93,13 +93,13 @@ class ICMPPing(Scanner):
     def _ping(self, hosts: Queue, interface: str, results: set):
         self.logger.debug("{}: Starting ICMP ping thread.".format(threading.current_thread().name))
         while True:
-            host = hosts.get()  # type: IPAddress
-            host_str = str(host)
+            ip = hosts.get()  # type: IPAddress
+            ip_str = str(ip)
 
-            res = sr1(IP(dst=host_str) / ICMP(), iface=interface, timeout=0.1, verbose=False)
+            res = sr1(IP(dst=ip_str) / ICMP(), iface=interface, timeout=0.1, verbose=False)
             if res:
                 node = NetworkNode()
-                node.ip = host
+                node.ip = ip
                 node.mac = EUI(res.src)
                 node.host = resolve_ip(res[IP].src)
                 results.add(node)
@@ -138,11 +138,11 @@ class TCPSYNPing(Scanner):
                 discovered_hosts = set()
 
                 ips_queue = Queue(network.size)
-                for thread_id in range(config.num_ping_threads):
+                for thread_nbr in range(config.num_ping_threads):
                     t = threading.Thread(
                         target=self._port_ping,
                         args=(ips_queue, interface, discovered_hosts,),
-                        name='worker-{}'.format(thread_id),
+                        name='worker-{}'.format(thread_nbr),
                         daemon=True
                     )
                     t.start()
@@ -168,24 +168,24 @@ class TCPSYNPing(Scanner):
         self.logger.debug("{}: Starting TCP SYN ping thread.".format(threading.current_thread().name))
 
         while True:
-            host = hosts.get()  # type: IPAddress
-            host_str = str(host)
+            ip = hosts.get()  # type: IPAddress
+            ip_str = str(ip)
 
             # Send SYN with random Src Port for each Dst port
             for dstPort in self.portstoscan:
                 srcPort = random.randint(1025, 65534)
-                resp = sr1(IP(dst=host_str) / TCP(sport=srcPort, dport=dstPort, flags=ScapyTCPFlag.SYN), timeout=1,
+                resp = sr1(IP(dst=ip_str) / TCP(sport=srcPort, dport=dstPort, flags=ScapyTCPFlag.SYN), timeout=1,
                            verbose=False,
                            iface=interface)
                 if resp and resp.haslayer(TCP):
                     if resp[TCP].flags == (TCPFlag.SYN | TCPFlag.ACK) or resp[TCP].flags == (TCPFlag.RST | TCPFlag.ACK):
                         # Send Reset packet (RST)
-                        send(IP(dst=host_str) / TCP(sport=srcPort, dport=dstPort, flags=ScapyTCPFlag.RST),
+                        send(IP(dst=ip_str) / TCP(sport=srcPort, dport=dstPort, flags=ScapyTCPFlag.RST),
                              iface=interface, verbose=False)
 
                         # We know the port is closed or opened (we got a response), so we deduce that the host exists
                         node = NetworkNode()
-                        node.ip = host
+                        node.ip = ip
                         node.mac = EUI(resp.src)
                         node.host = resolve_ip(resp[IP].src)
                         results.add(node)
