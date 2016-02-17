@@ -1,11 +1,12 @@
+import collections
 import logging
 
-import collections
 from scapy import packet
-from scapy.layers.inet import IP, TCP, TCPOptionsField
+from scapy.layers.inet import IP, TCP
 
 from analyzr.core.entities import AnalyzrModule
 from analyzr.utils.file import open_with_error
+from analyzr.utils.network import TCPFlag
 
 
 class NodeFingerprint:
@@ -107,6 +108,7 @@ class EttercapFingerprinter(Fingerprinter):
                     #    os_vendor = li[29:]
                     #    self.os_fingerprints.setdefault(fingerprint, []).append(os_vendor)
 
+            # TODO: Remove this. This is only to debug.
             for fingerprint, vendors in self.os_fingerprints.items():
                 print("Operating systems matching the fingerprint: ", str(fingerprint), "\n")
                 for vendor in vendors:
@@ -116,12 +118,21 @@ class EttercapFingerprinter(Fingerprinter):
                 "Loaded {nb_finger} fingerprints from {file_name}.".format(nb_finger=len(self.os_fingerprints),
                                                                            file_name=self.os_fingerprint_file_name))
 
-    def identify_os_from_pkt(self, pkt: packet):
-        pass
+    def identify_os_from_pkt(self, pkt: packet) -> list:
+        try:
+            ettercap_fingerprint = self._pkt_to_ettercap_fingerprint(pkt)
+            return self.os_fingerprints[ettercap_fingerprint]
+        except KeyError:
+            return ["Unknown OS"]
+        except (TypeError, ValueError) as e:
+            self.logger.warning(str(e))
+            return []
 
     def _pkt_to_ettercap_fingerprint(self, pkt: packet):
+        # We don't want to modify the original packet
         pkt = pkt.copy()
         pkt = pkt.__class__(bytes(pkt))
+
         while pkt.haslayer(IP) and pkt.haslayer(TCP):
             pkt = pkt.getlayer(IP)
             if isinstance(pkt.payload, TCP):
@@ -131,21 +142,63 @@ class EttercapFingerprinter(Fingerprinter):
         if not isinstance(pkt, IP) or not isinstance(pkt.payload, TCP):
             raise TypeError("Not a TCP/IP packet")
 
+        if not pkt[TCP].options:
+            return self._get_ettercap_fingerprint(
+                tcp_window_size=hex(pkt[TCP].window),
+                tcp_opt_max_segment_size="",
+                ip_ttl=hex(pkt[IP].ttl),
+                tcp_opt_window_scale_factor="",
+                tcp_opt_sack_permitted=False,
+                tcp_opt_no_operation=False,
+                ip_flag_dont_fragment="DF" in pkt[IP].flags,
+                tcp_opt_timestamp_present=False,
+                tcp_flag_syn=pkt[TCP].flags & TCPFlag.SYN == TCPFlag.SYN,
+                tcp_flag_ack=pkt[TCP].flags & TCPFlag.ACK == TCPFlag.ACK,
+                ip_pkt_total_len=hex(len(pkt[IP]))
+            )
+
+        tcp_options = dict(pkt[TCP].options)
+
         wwww = pkt[TCP].window
         # TCPOptionsField.getfield()
         # mss = pkt[TCP].options[]
         ttl = pkt.ttl
         # ws =
 
-    def _get_ettercap_fingerprint(self, window_size: int,
-                                  tcp_opt_max_segment_size: int,
-                                  ip_ttl: bytes,
-                                  tcp_opt_window_scale_factor: bytes,
+    def _get_ettercap_fingerprint(self,
+                                  tcp_window_size: str,  # hex
+                                  tcp_opt_max_segment_size: str,  # hex
+                                  ip_ttl: str,  # hex
+                                  tcp_opt_window_scale_factor: str,  # hex
                                   tcp_opt_sack_permitted: bool,
                                   tcp_opt_no_operation: bool,
                                   ip_flag_dont_fragment: bool,
                                   tcp_opt_timestamp_present: bool,
                                   tcp_flag_syn: bool,
                                   tcp_flag_ack: bool,
-                                  ip_pkt_total_len: int):
-        pass
+                                  ip_pkt_total_len: str):  # hex
+        fingerprint_builder = []
+        fingerprint_builder.append(tcp_window_size)
+        fingerprint_builder.append(tcp_opt_max_segment_size if tcp_opt_max_segment_size else "_MSS")
+        fingerprint_builder.append(ip_ttl)
+        fingerprint_builder.append(tcp_opt_window_scale_factor if tcp_opt_window_scale_factor else "WS")
+        fingerprint_builder.append("1" if tcp_opt_sack_permitted else "0")
+        fingerprint_builder.append("1" if tcp_opt_no_operation else "0")
+        fingerprint_builder.append("1" if ip_flag_dont_fragment else "0")
+        fingerprint_builder.append("1" if tcp_opt_timestamp_present else "0")
+
+        if tcp_flag_syn and not tcp_flag_ack:
+            fingerprint_builder.append("S")
+        elif tcp_flag_syn and tcp_flag_ack:
+            fingerprint_builder.append("A")
+        else:
+            raise ValueError("Not a SYN or SYN/ACK packet")
+
+        fingerprint_builder.append(ip_pkt_total_len if ip_pkt_total_len else "LT")
+
+        return self.EttercapFingerprint(*fingerprint_builder)
+
+
+
+        # def _get_ettercap_fingerprint(self, **kwargs):
+        #    pass
