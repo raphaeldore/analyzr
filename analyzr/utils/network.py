@@ -136,5 +136,13 @@ class TCPFlag(IntEnum):
     ACK     = 0x10
     URG     = 0x20
 
+    def is_flag(tcp_flag, integer):
+        return tcp_flag & integer == tcp_flag
+
     # Si on veut un SYN-ACK on fait tout simplement:
     #   SYN_ACK = TCPFlag.SYN | TCPFlag.ACK
+
+class IPFlag(IntEnum):
+    EVIL = 0b00000000 # (0) Reserved Bit A.K.A the "Evil Bit "
+    DF = 0b00000010 # (1) Don't fragment
+    MF = 0b00000100 # (2) More fragments
