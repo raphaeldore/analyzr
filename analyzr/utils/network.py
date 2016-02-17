@@ -1,7 +1,7 @@
 import math
 import socket
 import struct
-from enum import Enum
+from enum import IntEnum
 from scapy.all import conf
 from netaddr import IPNetwork, IPAddress
 
@@ -73,7 +73,7 @@ def resolve_ip(ip):
     return host
 
 
-class ICMPType(Enum):
+class ICMPType(IntEnum):
     ECHO_REPLY              = 0
     DEST_UNREACHABLE        = 3
     SOURCE_QUENCH           = 4
@@ -90,7 +90,7 @@ class ICMPType(Enum):
     ADDRESS_MASK_REQUEST    = 17
     ADDRESS_MASK_REPLY      = 18
 
-class ICMPCode(Enum):
+class ICMPCode(IntEnum):
     # DEST_UNREACHABLE (3)
     NETWORK_UNREACHABLE         = 0
     HOST_UNREACHABLE            = 1
@@ -127,7 +127,7 @@ class ScapyTCPFlag:
     ACK = "A"
     RST = "R"
 
-class TCPFlag(Enum):
+class TCPFlag(IntEnum):
     NULL    = 0x00
     FIN     = 0x01
     SYN     = 0x02
@@ -136,8 +136,5 @@ class TCPFlag(Enum):
     ACK     = 0x10
     URG     = 0x20
 
-    def __or__(self, other):
-        return self.value | other.value
-
-
-    # Si on veut un SYN-ACK on fait: SYN_ACK = SYN | ACK
+    # Si on veut un SYN-ACK on fait tout simplement:
+    #   SYN_ACK = TCPFlag.SYN | TCPFlag.ACK
