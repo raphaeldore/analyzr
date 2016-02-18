@@ -13,6 +13,8 @@ class NetworkNode:
         self.ip = ip
         self.mac = mac
         self.host = host
+        self.possible_fingerprints = set()
+        self.opened_ports = []
 
     def __eq__(self, other: IPAddress):
         return self.ip == other
@@ -21,8 +23,9 @@ class NetworkNode:
         return self.ip.__hash__()
 
     def __str__(self):
-        return "{ip} - {mac} - {host}".format(ip=str(self.ip), mac=str(self.mac),
-                                              host=self.host if self.host else "Unknown host")
+        return "{fingerprint} - {ip} - {mac} - {host} - Opened ports: {ports}".format(
+            fingerprint=str(self.possible_fingerprints), ip=str(self.ip), mac=str(self.mac),
+            host=self.host if self.host else "Unknown host", ports=self.opened_ports)
 
 
 class AnalyzrModule(object):
