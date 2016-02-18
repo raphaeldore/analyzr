@@ -12,9 +12,7 @@ from analyzr.utils.network import TCPFlag, IPFlag
 class NodeFingerprint:
     def __init__(self, os: str = None, category: str = None, family: str = None, opened_tcp_ports: list = None):
         self.os = os
-        self.category = category
         self.opened_tcp_ports = opened_tcp_ports
-        self.family = family
 
 
 class Fingerprinter(AnalyzrModule):

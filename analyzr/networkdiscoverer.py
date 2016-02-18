@@ -6,10 +6,12 @@ This modules allows to scan the network of the current host..
 """
 
 from scapy.all import *
-from scapy.layers.inet import IP, UDP
+from scapy.layers.inet import IP, UDP, TCP
 
-from .portscanthread import PortScanThread
-from .topports import topports
+from fingerprints import fingerprinter
+from utils.network import ScapyTCPFlag
+from analyzr.portscanthread import PortScanThread
+from analyzr.topports import topports
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +24,37 @@ class NetworkDiscoverer():
         self.live_network_hosts = dict()  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
 
     def discover(self):
+        logger.info("Starting host discovery...")
         for scanner in self.scanners:
             scanner.scan()
 
+        logger.info("Discovery done.")
         self.combine_results()
+
+        logger.info("Trying to identify fingerprints of live hosts...")
+        self.identify_fingerprints()
+        logger.info("...done.")
 
     def combine_results(self):
         for scanner in self.scanners:
             for network, network_nodes in scanner.scan_results.items():
                 tmp = self.live_network_hosts.setdefault(network, set())
                 tmp.update(network_nodes)
+
+    def identify_fingerprints(self):
+        responses = dict()
+        for network, network_nodes in self.live_network_hosts.items():
+            for network_node in network_nodes:
+                srcPort = random.randint(1025, 65534)
+                resp = sr1(IP(dst=str(network_node.ip)) / TCP(sport=srcPort, dport=topports, flags=ScapyTCPFlag.SYN), timeout=1, verbose=0)
+                if resp:
+                    responses[network_node] = resp
+
+        for fingerprinter in self.fingerprinters: # type: fingerprinter
+            for network_node, resp in responses.items():
+                os = fingerprinter.identify_os_from_pkt(resp)
+                if os:
+                    network_node.possible_fingerprints.add(os)
 
     def find_hops(self):
         iphops = dict()
