@@ -28,10 +28,10 @@ class NetworkDiscoverer():
         logger.info("Starting host discovery...")
         for scanner in self.scanners:
             scanner.scan()
+            self._add_results(scanner.scan_results)
 
 
         logger.info("Discovery done.")
-        self.combine_results()
 
         logger.info("The scan found these hosts: ")
         self.pretty_print_ips()
@@ -41,13 +41,9 @@ class NetworkDiscoverer():
         logger.info("...done.")
         self.pretty_print_ips()
 
-    def _add_results(self, results : dict):
-        pass
-
-    def combine_results(self):
-        for scanner in self.scanners:
-            for network, network_nodes in scanner.scan_results.items():
-                self.live_network_hosts[network].update(network_nodes)
+    def _add_results(self, scan_results : dict):
+        for network, network_nodes in scan_results.items():
+            self.live_network_hosts[network].update(network_nodes)
 
     def identify_fingerprints(self):
         responses = dict()
