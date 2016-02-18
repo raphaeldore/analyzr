@@ -23,9 +23,10 @@ class NetworkNode:
         return self.ip.__hash__()
 
     def __str__(self):
-        return "{fingerprint} - {ip} - {mac} - {host} - Opened ports: {ports}".format(
-            fingerprint=str(self.possible_fingerprints), ip=str(self.ip), mac=str(self.mac),
-            host=self.host if self.host else "Unknown host", ports=self.opened_ports)
+        return "{ip} - {mac} - {host} - Opened ports: {ports} - Possible fingerprints: {fingerprint}".format(
+            ip=str(self.ip), mac=str(self.mac),
+            host=self.host if self.host else "Unknown host", ports=self.opened_ports,
+            fingerprint=", ".join(str(e) for e in self.possible_fingerprints))
 
 
 class AnalyzrModule(object):
