@@ -125,7 +125,7 @@ class TCPSYNPing(Scanner):
             for interface, network in config.interfaces_networks.items():
                 if network.is_private() and not config.scan_local_network_as_public:
                     self.logger.info(
-                        "Skipping TCP ACK Ping on {0:s} because it's a private network.".format(str(network)))
+                        "Skipping TCP SYN Ping on {0:s} because it's a private network.".format(str(network)))
                     continue
 
                 if config.fastTCP:
