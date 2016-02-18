@@ -8,8 +8,8 @@ This modules allows to scan the network of the current host..
 from scapy.all import *
 from scapy.layers.inet import IP, UDP, TCP
 
-from fingerprints import fingerprinter
-from utils.network import ScapyTCPFlag
+from analyzr.fingerprints import fingerprinter
+from analyzr.utils.network import ScapyTCPFlag
 from analyzr.portscanthread import PortScanThread
 from analyzr.topports import topports
 
@@ -21,25 +21,32 @@ class NetworkDiscoverer():
         self.scanners = scanners
         self.fingerprinters = fingerprinters
         self.host_ip_address = ""
-        self.live_network_hosts = dict()  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
+        self.live_network_hosts = defaultdict(set)  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
 
     def discover(self):
         logger.info("Starting host discovery...")
         for scanner in self.scanners:
             scanner.scan()
 
+
         logger.info("Discovery done.")
         self.combine_results()
+
+        logger.info("The scan found these hosts: ")
+        self.pretty_print_ips()
 
         logger.info("Trying to identify fingerprints of live hosts...")
         self.identify_fingerprints()
         logger.info("...done.")
+        self.pretty_print_ips()
+
+    def _add_results(self, results : dict):
+        pass
 
     def combine_results(self):
         for scanner in self.scanners:
             for network, network_nodes in scanner.scan_results.items():
-                tmp = self.live_network_hosts.setdefault(network, set())
-                tmp.update(network_nodes)
+                self.live_network_hosts[network].update(network_nodes)
 
     def identify_fingerprints(self):
         responses = dict()
@@ -54,7 +61,7 @@ class NetworkDiscoverer():
             for network_node, resp in responses.items():
                 os = fingerprinter.identify_os_from_pkt(resp)
                 if os:
-                    network_node.possible_fingerprints.add(os)
+                    network_node.possible_fingerprints |= os
 
     def find_hops(self):
         iphops = dict()
