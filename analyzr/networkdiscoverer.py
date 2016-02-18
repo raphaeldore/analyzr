@@ -8,6 +8,7 @@ This modules allows to scan the network of the current host..
 from scapy.all import *
 from scapy.layers.inet import IP, UDP, TCP
 
+from analyzr.core.entities import NetworkNode
 from analyzr.fingerprints import fingerprinter
 from analyzr.utils.network import ScapyTCPFlag
 from analyzr.portscanthread import PortScanThread
@@ -83,6 +84,7 @@ class NetworkDiscoverer():
     def pretty_print_ips(self):
         for network, network_nodes in self.live_network_hosts.items():
             print("Live hosts in network {0:s}".format(str(network)))
+            print(NetworkNode.str_template.format("IP", "MAC", "Host", "Opened Ports", "Possible fingerprints"))
             for network_node in network_nodes:
                 print(network_node)
 

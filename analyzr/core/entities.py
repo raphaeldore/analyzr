@@ -9,6 +9,9 @@ class NetworkNode:
     Represents a node in the network.
     """
 
+    # ip - mac - host - opened_ports - possibles fingerprints
+    str_template = "{0:15s}|{1:17s}|{2:30s}|{3:15s}|{4:30s}"  # column widths: 15, 17, 30, 15, 30
+
     def __init__(self, ip: IPAddress = None, mac: EUI = None, host: str = None):
         self.ip = ip
         self.mac = mac
@@ -23,10 +26,9 @@ class NetworkNode:
         return self.ip.__hash__()
 
     def __str__(self):
-        return "{ip} - {mac} - {host} - Opened ports: {ports} - Possible fingerprints: {fingerprint}".format(
-            ip=str(self.ip), mac=str(self.mac),
-            host=self.host if self.host else "Unknown host", ports=self.opened_ports,
-            fingerprint=", ".join(str(e) for e in self.possible_fingerprints))
+        return self.str_template.format(
+            str(self.ip), str(self.mac), self.host if self.host else "Unknown host", str(self.opened_ports).strip("[]"),
+            ", ".join(str(e) for e in self.possible_fingerprints))
 
 
 class AnalyzrModule(object):
