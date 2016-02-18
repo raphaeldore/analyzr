@@ -2,8 +2,9 @@ import math
 import socket
 import struct
 from enum import IntEnum
-from scapy.all import conf
+from scapy.all import conf, random, sr1, send
 from netaddr import IPNetwork, IPAddress
+from scapy.layers.inet import IP, TCP, ICMP
 
 
 def long2netmask(arg):
@@ -74,75 +75,103 @@ def resolve_ip(ip):
 
 
 class ICMPType(IntEnum):
-    ECHO_REPLY              = 0
-    DEST_UNREACHABLE        = 3
-    SOURCE_QUENCH           = 4
-    REDIRECT                = 5
-    ECHO_REQUEST            = 8
-    ROUTER_ADVERTISEMENT    = 9
-    ROUTER_SOLICITATION     = 10
-    TIME_EXCEEDED           = 11
-    PARAMETER_PROBLEM       = 12
-    TIMESTAMP_REQUEST       = 13
-    TIMESTAMP_REPLY         = 14
-    INFORMATION_REQUEST     = 15
-    INFORMATION_RESPONSE    = 16
-    ADDRESS_MASK_REQUEST    = 17
-    ADDRESS_MASK_REPLY      = 18
+    ECHO_REPLY = 0
+    DEST_UNREACHABLE = 3
+    SOURCE_QUENCH = 4
+    REDIRECT = 5
+    ECHO_REQUEST = 8
+    ROUTER_ADVERTISEMENT = 9
+    ROUTER_SOLICITATION = 10
+    TIME_EXCEEDED = 11
+    PARAMETER_PROBLEM = 12
+    TIMESTAMP_REQUEST = 13
+    TIMESTAMP_REPLY = 14
+    INFORMATION_REQUEST = 15
+    INFORMATION_RESPONSE = 16
+    ADDRESS_MASK_REQUEST = 17
+    ADDRESS_MASK_REPLY = 18
+
 
 class ICMPCode(IntEnum):
     # DEST_UNREACHABLE (3)
-    NETWORK_UNREACHABLE         = 0
-    HOST_UNREACHABLE            = 1
-    PROTOCOL_UNREACHABLE        = 2
-    PORT_UNREACHABLE            = 3
-    FRAGMENTATION_NEEDED        = 4
-    SOURCE_ROUTE_FAILED         = 5
-    NETWORK_UNKNOWN             = 6
-    HOST_UNKNOWN                = 7
-    NETWORK_PROHIBITED          = 9
-    HOST_PROHIBITED            = 10
-    TOS_NETWORK_UNREACHABLE    = 11
-    TOS_HOST_UNREACHABLE       = 12
-    COMMUNICATION_PROHIBITED   = 13
-    HOST_PRECEDENCE_VIOLATION  = 14
-    PRECEDENCE_CUTOFF          = 15
+    NETWORK_UNREACHABLE = 0
+    HOST_UNREACHABLE = 1
+    PROTOCOL_UNREACHABLE = 2
+    PORT_UNREACHABLE = 3
+    FRAGMENTATION_NEEDED = 4
+    SOURCE_ROUTE_FAILED = 5
+    NETWORK_UNKNOWN = 6
+    HOST_UNKNOWN = 7
+    NETWORK_PROHIBITED = 9
+    HOST_PROHIBITED = 10
+    TOS_NETWORK_UNREACHABLE = 11
+    TOS_HOST_UNREACHABLE = 12
+    COMMUNICATION_PROHIBITED = 13
+    HOST_PRECEDENCE_VIOLATION = 14
+    PRECEDENCE_CUTOFF = 15
 
     # REDIRECT (5)
-    NETWORK_REDIRECT        = 0
-    HOST_REDIRECT           = 1
-    TOS_NETWORK_REDIRECT    = 2
-    TOS_HOST_REDIRECT       = 3
+    NETWORK_REDIRECT = 0
+    HOST_REDIRECT = 1
+    TOS_NETWORK_REDIRECT = 2
+    TOS_HOST_REDIRECT = 3
 
     # TIME_EXCEEDED (11)
-    TTL_ZERO_DURING_TRANSIT     = 0
-    TTL_ZERO_DURING_REASSEMBLY  = 1
+    TTL_ZERO_DURING_TRANSIT = 0
+    TTL_ZERO_DURING_REASSEMBLY = 1
 
     # PARAMETER_PROBLEM (12)
-    IP_HEADER_BAD           = 0
+    IP_HEADER_BAD = 0
     REQUIRED_OPTION_MISSING = 1
+
 
 class ScapyTCPFlag:
     SYN = "S"
     ACK = "A"
     RST = "R"
 
+
 class TCPFlag(IntEnum):
-    NULL    = 0x00
-    FIN     = 0x01
-    SYN     = 0x02
-    RST     = 0x04
-    PSH     = 0x08
-    ACK     = 0x10
-    URG     = 0x20
+    NULL = 0x00
+    FIN = 0x01
+    SYN = 0x02
+    RST = 0x04
+    PSH = 0x08
+    ACK = 0x10
+    URG = 0x20
 
     def is_flag(tcp_flag, integer):
         return tcp_flag & integer == tcp_flag
 
-    # Si on veut un SYN-ACK on fait tout simplement:
-    #   SYN_ACK = TCPFlag.SYN | TCPFlag.ACK
+        # Si on veut un SYN-ACK on fait tout simplement:
+        #   SYN_ACK = TCPFlag.SYN | TCPFlag.ACK
+
 
 class IPFlag(IntEnum):
-    EVIL = 0b00000000 # (0) Reserved Bit A.K.A the "Evil Bit "
-    DF = 0b00000010 # (1) Don't fragment
-    MF = 0b00000100 # (2) More fragments
+    EVIL = 0b00000000  # (0) Reserved Bit A.K.A the "Evil Bit "
+    DF = 0b00000010  # (1) Don't fragment
+    MF = 0b00000100  # (2) More fragments
+
+
+def scan_ports(host, ports) -> (list, list):
+    # Send SYN with random Src Port for each Dst port
+    opened_ports = []
+    closed_ports = []
+    for dstPort in ports:
+        if scan_port(host, dstPort):
+            opened_ports.append(dstPort)
+        else:
+            closed_ports.append(dstPort)
+
+    return opened_ports, closed_ports
+
+
+def scan_port(host, port):
+    # Send SYN with random Src Port for each Dst port
+    srcPort = random.randint(1025, 65534)
+    resp = sr1(IP(dst=host) / TCP(sport=srcPort, dport=port, flags="S"), timeout=1, verbose=0)
+    if resp.haslayer(TCP) and resp[TCP].flags == (TCPFlag.SYN | TCPFlag.ACK):
+        send(IP(dst=host) / TCP(sport=srcPort, dport=port, flags="R"), timeout=1, verbose=0)
+        return True
+
+    return False
