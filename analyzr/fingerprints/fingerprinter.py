@@ -24,7 +24,7 @@ class Fingerprinter(AnalyzrModule):
     def load_fingerprints(self):
         raise NotImplemented
 
-    def identify_os_from_pkt(self, pkt: packet):
+    def identify_os_from_pkt(self, pkt: packet) -> set:
         raise NotImplemented
 
 
@@ -84,13 +84,13 @@ class EttercapFingerprinter(Fingerprinter):
                     vendor = split_line[10]
                     fingerprint = self.EttercapFingerprint(*split_line[:-1])  # on ignore l'os
 
-                    self.os_fingerprints.setdefault(fingerprint, []).append(vendor)
+                    self.os_fingerprints.setdefault(fingerprint, set()).add(vendor)
 
             self.logger.debug(
                 "Loaded {nb_finger} fingerprints from {file_name}.".format(nb_finger=len(self.os_fingerprints),
                                                                            file_name=self.os_fingerprint_file_name))
 
-    def identify_os_from_pkt(self, pkt: packet) -> list:
+    def identify_os_from_pkt(self, pkt: packet) -> set:
         try:
             ettercap_fingerprint, ettercap_fingerprint_wo_len = self._pkt_to_ettercap_fingerprint(pkt)
 
@@ -100,9 +100,9 @@ class EttercapFingerprinter(Fingerprinter):
             if not found_fingerprint and ettercap_fingerprint_wo_len:
                 found_fingerprint = self.os_fingerprints.get(ettercap_fingerprint_wo_len, None)
 
-            return found_fingerprint if found_fingerprint else ["Unknown OS"]
+            return found_fingerprint if found_fingerprint else {}
         except (TypeError, ValueError):
-            return []
+            return {}
 
     def _pkt_to_ettercap_fingerprint(self, pkt: packet) -> (EttercapFingerprint, EttercapFingerprint):
         # We don't want to modify the original packet
