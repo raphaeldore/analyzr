@@ -1,7 +1,7 @@
 import types
 from os import path as op
 from os.path import join
-from cx_Freeze import setup, Executable
+from setuptools import setup
 
 from io import StringIO
 
@@ -19,23 +19,22 @@ def _read_reqs(filename):
     return list((_.strip() for _ in StringIO(data) if is_valid(_.strip())))
 
 
-executables = [
-    Executable("run.py")
-]
-
 setup_params = dict(
     name='analyzr',
     version='1.0',
-    packages=['', 'core', 'utils', 'graphics', 'topology', 'fingerprints', 'networkdiscovery'],
-    package_dir={'': 'analyzr'},
+    packages=['scripts', 'analyzr/core', 'analyzr/utils', 'analyzr/graphics', 'analyzr/topology',
+              'analyzr/fingerprints', 'analyzr/networkdiscovery'],
+    entry_points={
+        'console_scripts': [
+            'analyzrctl = scripts.analyzrctl:main',
+        ],
+    },
     url='https://raphaeldore.github.io/analyzr/',
     license='MIT',
     author='Raphaël Doré & Raphaël Fournier',
     author_email='rdore@neomailbox.ch',
     description='Scannez votre réseau pour découvrir sa topologie!',
-    install_requires=_read_reqs('requirements.txt'),
-    executables=executables
-
+    install_requires=_read_reqs('requirements.txt')
 )
 
 

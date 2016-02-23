@@ -1,9 +1,16 @@
+import os
+import signal
+import sys
+from multiprocessing import Process
+
+import analyzr
+
+lib_path = os.path.abspath(os.path.join('..', 'analyzr'))
+sys.path.append(lib_path)
+
 import argparse
 import logging
-import sys
 
-
-from analyzr import Analyzr
 from analyzr.core import config
 from analyzr.utils.admin import isUserAdmin
 
@@ -37,8 +44,18 @@ def main():
 
     config.fastTCP = args.fastTCP
 
-    app = Analyzr()
-    app.run()
+    analyzr_process = Process(target=analyzr.execute, args=())
+    analyzr_process.start()
+
+    # Capture interrupt signal and cleanup before exiting
+    def signal_handler(signal, frame):
+        analyzr_process.terminate()
+        analyzr_process.join()
+
+        logger.info("Bye bye :)")
+
+    # Capture CTRL-C
+    signal.signal(signal.SIGINT, signal_handler)
 
 
 if __name__ == "__main__":

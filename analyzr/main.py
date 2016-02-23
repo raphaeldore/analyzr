@@ -1,13 +1,11 @@
 import logging
 import os
 
-from os.path import isfile
-
 from analyzr.core import config
+from analyzr.fingerprints import EttercapFingerprinter
 from analyzr.networkdiscoverer import NetworkDiscoverer
 from analyzr.networkdiscovery import active
 from analyzr.networkdiscovery import passive
-from analyzr.fingerprints import fingerprinter, EttercapFingerprinter
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +64,3 @@ def execute():
 
     # networkscanner.scan_found_network_nodes_for_opened_ports()
     # networkscanner.port_ping_scan()
-
-
-if __name__ == "__main__":
-    execute()
