@@ -1,3 +1,13 @@
+import logging
+import os
+
+from core import config
+from fingerprints import EttercapFingerprinter
+from networkdiscoverer import NetworkDiscoverer
+from networkdiscovery import active, passive
+
+logger = logging.getLogger(__name__)
+
 __title__ = 'analyzr'
 __version__ = '0.0.1'
 __author__ = 'Raphaël Doré & Raphaël Fournier'
@@ -11,6 +21,50 @@ __all__ = [
     'topology',
     'utils'
 ]
+
+
+class Analyzr:
+    def __init__(self):
+        self.config = dict()
+
+    def run(self):
+        scanners = list()
+        fingerprinters = list()
+
+        # for cls in classes_in_module(fingerprinter):
+        #    fingerprinters.append(cls())
+
+        dir = os.path.dirname(__file__)
+
+        fingerprinters.append(EttercapFingerprinter(os.path.join(dir, "resources", "etter.finger.os")))
+
+        for fingerprinter in fingerprinters:
+            try:
+                fingerprinter.load_fingerprints()
+            except FileNotFoundError:
+                logger.error(
+                    "{fingerprinter} : Unable to load {fingerprints}".format(fingerprinter=fingerprinter.name,
+                                                                             fingerprints=fingerprinter.os_fingerprint_file_name))
+
+        if config.activescan:
+            for cls in classes_in_module(active):
+                scanners.append(cls())
+        if config.passivescan:
+            for cls in classes_in_module(passive):
+                scanners.append(cls())
+
+        networkscanner = NetworkDiscoverer(scanners, fingerprinters)
+
+        networkscanner.discover()
+
+def classes_in_module(module: object):
+    md = module.__dict__
+    return [
+        md[c] for c in md if (
+            isinstance(md[c], type) and md[c].__module__ == module.__name__
+        )
+        ]
+
 
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
