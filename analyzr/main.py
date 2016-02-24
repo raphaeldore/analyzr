@@ -1,13 +1,41 @@
-import logging
 import os
+import sys
 
-from analyzr.core import config
-from analyzr.fingerprints import EttercapFingerprinter
-from analyzr.networkdiscoverer import NetworkDiscoverer
-from analyzr.networkdiscovery import active
-from analyzr.networkdiscovery import passive
+lib_path = os.path.abspath(os.path.join('..', 'analyzr'))
+sys.path.append(lib_path)
+
+import argparse
+import logging
+
+import signal
+
+from multiprocessing import Process
+
+from core import config
+from fingerprints import EttercapFingerprinter
+from networkdiscoverer import NetworkDiscoverer
+from networkdiscovery import active
+from networkdiscovery import passive
+from utils.admin import is_user_admin
+
 
 logger = logging.getLogger(__name__)
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-f",
+                        "--force",
+                        help="Force run the application. Even if not root. Warning : things most probably won't work.",
+                        action='store_true',
+                        default=False)
+    parser.add_argument("-ftcp",
+                        "--fastTCP", help="Makes TCPSYNPing only ping on port 80.",
+                        action="store_true",
+                        default=False)
+
+    return parser.parse_args()
 
 
 def read_config():
@@ -24,7 +52,39 @@ def classes_in_module(module: object):
         ]
 
 
-def execute():
+def run():
+    args = parse_arguments()
+
+    logger = logging.getLogger("analyzr")
+
+    logger.setLevel(logging.DEBUG if config.debug else logging.INFO)
+
+    if not args.force:
+        try:
+            # perm check
+            if not is_user_admin():
+                logger.error("\033[31m [-] Please run as root. \033[0m")
+                sys.exit(1)
+        except RuntimeError as re:
+            logger.error(str(re))
+            sys.exit(1)
+
+    analyzr_process = Process(target=_scan, args=(args,))
+
+    analyzr_process.start()
+
+    # Capture interrupt signal and cleanup before exiting
+    def signal_handler(signal, frame):
+        analyzr_process.terminate()
+        analyzr_process.join()
+
+        logger.info("Bye bye :)")
+
+    # Capture CTRL-C
+    signal.signal(signal.SIGINT, signal_handler)
+
+
+def _scan(args):
     read_config()
 
     scanners = list()
@@ -55,12 +115,7 @@ def execute():
     networkscanner = NetworkDiscoverer(scanners, fingerprinters)
 
     networkscanner.discover()
-    #networkscanner.pretty_print_ips()
 
-    # networkscanner.scan_and_find_network_nodes_on_networks()
-    # networkscanner.pretty_print_ips()
-    # networkscanner.fingerprints()
-    # networkscanner.find_hops()
 
-    # networkscanner.scan_found_network_nodes_for_opened_ports()
-    # networkscanner.port_ping_scan()
+if __name__ == "__main__":
+    run()
