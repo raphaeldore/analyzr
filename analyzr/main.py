@@ -31,8 +31,6 @@ def run(args):
     from scapy.all import conf
 
     # Make scapy shut up
-    # Removes "WARNING: Mac address to reach destination not found. Using broadcast" message.
-    logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
     conf.verb = 0
 
     logger = logging.getLogger("analyzr")

@@ -1,8 +1,4 @@
-import logging
-
 from analyzr.core import config
-
-logger = logging.getLogger(__name__)
 
 __title__ = 'analyzr'
 __version__ = '0.0.1'
@@ -59,3 +55,6 @@ logging_config = dict(
 logging.config.dictConfig(logging_config)
 
 logging.getLogger(__name__).addHandler(NullHandler())
+
+# Removes "WARNING: Mac address to reach destination not found. Using broadcast" message.
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
