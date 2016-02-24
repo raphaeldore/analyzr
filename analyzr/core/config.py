@@ -1,6 +1,5 @@
-from analyzr.utils.network import get_local_interfaces_networks
-
-interfaces_networks, networks_ips = get_local_interfaces_networks()
+interfaces_networks = dict()
+networks_ips = dict()
 passivescan = True
 activescan = True
 fastTCP = True

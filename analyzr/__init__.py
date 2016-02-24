@@ -59,7 +59,3 @@ logging_config = dict(
 logging.config.dictConfig(logging_config)
 
 logging.getLogger(__name__).addHandler(NullHandler())
-
-# Scapy Logging
-# Removes "WARNING: Mac address to reach destination not found. Using broadcast" message.
-logging.getLogger("scapy.runtime").setLevel(logging.ERROR)

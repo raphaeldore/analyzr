@@ -2,9 +2,10 @@ import math
 import socket
 import struct
 from enum import IntEnum
-from scapy.all import conf, random, sr1, send
+
 from netaddr import IPNetwork, IPAddress
-from scapy.layers.inet import IP, TCP, ICMP
+from scapy.all import conf, random, sr1, send
+from scapy.layers.inet import IP, TCP
 
 
 def long2netmask(arg):
