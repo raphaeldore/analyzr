@@ -2,7 +2,7 @@ import os
 import traceback
 
 
-def isUserAdmin():
+def is_user_admin():
     """
     Determines if current user is root/administrator.
     Works for nt (Windows >= XP SP2) and posix (unix, I.E: Linux, OSX, etc..).

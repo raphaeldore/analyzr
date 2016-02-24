@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class ArpPing(Scanner):
     def __init__(self):
-        super(ArpPing, self).__init__()
+        super(ArpPing, self).__init__(name="Arp Ping Scanner")
 
     def scan(self):
         try:
@@ -50,7 +50,7 @@ class ArpPing(Scanner):
 
 class ICMPPing(Scanner):
     def __init__(self):
-        super(ICMPPing, self).__init__()
+        super(ICMPPing, self).__init__("ICMP Ping Scanner")
 
     def scan(self):
         try:
@@ -109,7 +109,7 @@ class ICMPPing(Scanner):
 
 class TCPSYNPing(Scanner):
     def __init__(self):
-        super(TCPSYNPing, self).__init__()
+        super(TCPSYNPing, self).__init__("TCP SYN Ping Scanner")
         if config.fastTCP:
             self.portstoscan = [80]
         else:
@@ -125,7 +125,7 @@ class TCPSYNPing(Scanner):
             for interface, network in config.interfaces_networks.items():
                 if network.is_private() and not config.scan_local_network_as_public:
                     self.logger.info(
-                        "Skipping TCP ACK Ping on {0:s} because it's a private network.".format(str(network)))
+                        "Skipping TCP SYN Ping on {0:s} because it's a private network.".format(str(network)))
                     continue
 
                 if config.fastTCP:

@@ -10,8 +10,8 @@ class Scanner(AnalyzrModule):
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self):
-        super(Scanner, self).__init__()
+    def __init__(self, name: str):
+        super(Scanner, self).__init__(name)
         self.logger = logging.getLogger(__name__)
         self.scan_results = dict()
 

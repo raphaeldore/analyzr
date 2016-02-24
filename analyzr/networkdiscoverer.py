@@ -6,31 +6,59 @@ This modules allows to scan the network of the current host..
 """
 
 from scapy.all import *
-from scapy.layers.inet import IP, UDP
+from scapy.layers.inet import IP, UDP, TCP
 
-from .portscanthread import PortScanThread
-from .topports import topports
+from analyzr.core.entities import NetworkNode
+from analyzr.fingerprints import fingerprinter
+from analyzr.utils.network import ScapyTCPFlag
+from analyzr.portscanthread import PortScanThread
+from analyzr.topports import topports
 
 logger = logging.getLogger(__name__)
 
 
 class NetworkDiscoverer():
-    def __init__(self, scanners: list()):
+    def __init__(self, scanners: list, fingerprinters: list):
         self.scanners = scanners
+        self.fingerprinters = fingerprinters
         self.host_ip_address = ""
-        self.live_network_hosts = dict()  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
+        self.live_network_hosts = defaultdict(set)  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
 
     def discover(self):
+        logger.info("Starting host discovery...")
         for scanner in self.scanners:
             scanner.scan()
+            self._add_results(scanner.scan_results)
 
-        self.combine_results()
 
-    def combine_results(self):
-        for scanner in self.scanners:
-            for network, network_nodes in scanner.scan_results.items():
-                tmp = self.live_network_hosts.setdefault(network, set())
-                tmp.update(network_nodes)
+        logger.info("Discovery done.")
+
+        logger.info("The scan found these hosts: ")
+        self.pretty_print_ips()
+
+        logger.info("Trying to identify fingerprints of live hosts...")
+        self.identify_fingerprints()
+        logger.info("...done.")
+        self.pretty_print_ips()
+
+    def _add_results(self, scan_results : dict):
+        for network, network_nodes in scan_results.items():
+            self.live_network_hosts[network].update(network_nodes)
+
+    def identify_fingerprints(self):
+        responses = dict()
+        for network, network_nodes in self.live_network_hosts.items():
+            for network_node in network_nodes:
+                srcPort = random.randint(1025, 65534)
+                resp = sr1(IP(dst=str(network_node.ip)) / TCP(sport=srcPort, dport=topports, flags=ScapyTCPFlag.SYN), timeout=1, verbose=0)
+                if resp:
+                    responses[network_node] = resp
+
+        for fingerprinter in self.fingerprinters: # type: fingerprinter
+            for network_node, resp in responses.items():
+                os = fingerprinter.identify_os_from_pkt(resp)
+                if os:
+                    network_node.possible_fingerprints |= os
 
     def find_hops(self):
         iphops = dict()
@@ -52,6 +80,7 @@ class NetworkDiscoverer():
     def pretty_print_ips(self):
         for network, network_nodes in self.live_network_hosts.items():
             print("Live hosts in network {0:s}".format(str(network)))
+            print(NetworkNode.str_template.format("IP", "MAC", "Host", "Opened Ports", "Possible fingerprints"))
             for network_node in network_nodes:
                 print(network_node)
 
