@@ -7,8 +7,6 @@ sys.path.append(lib_path)
 import analyzr.main
 
 
-
-
 def main():
     analyzr.main.run()
 

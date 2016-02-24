@@ -1,26 +1,27 @@
+import argparse
+import logging
 import os
+import signal
 import sys
+from multiprocessing import Process
 
 lib_path = os.path.abspath(os.path.join('..', 'analyzr'))
 sys.path.append(lib_path)
 
-import argparse
-import logging
 
-import signal
-
-from multiprocessing import Process
-
-from core import config
-from fingerprints import EttercapFingerprinter
-from networkdiscoverer import NetworkDiscoverer
-from networkdiscovery import active
-from networkdiscovery import passive
-from utils.admin import is_user_admin
-
+from analyzr.fingerprints import EttercapFingerprinter
+from analyzr.networkdiscovery import active, passive
+from analyzr.networkdiscoverer import NetworkDiscoverer
+from analyzr.utils.admin import is_user_admin
 
 logger = logging.getLogger(__name__)
 
+LOG_LEVELS = { 'debug':logging.DEBUG,
+            'info':logging.INFO,
+            'warning':logging.WARNING,
+            'error':logging.ERROR,
+            'critical':logging.CRITICAL,
+            }
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -34,6 +35,11 @@ def parse_arguments():
                         "--fastTCP", help="Makes TCPSYNPing only ping on port 80.",
                         action="store_true",
                         default=False)
+    parser.add_argument("-ll",
+                        "--log-level",
+                        help="Sets the logging level for the whole application. Possible values are : debug, info, warning, error and critical.",
+                        default="debug",
+                        choices= LOG_LEVELS.keys())
 
     return parser.parse_args()
 
@@ -54,10 +60,8 @@ def classes_in_module(module: object):
 
 def run():
     args = parse_arguments()
-
     logger = logging.getLogger("analyzr")
-
-    logger.setLevel(logging.DEBUG if config.debug else logging.INFO)
+    logger.setLevel(LOG_LEVELS.get(args.log_level))
 
     if not args.force:
         try:
@@ -77,8 +81,6 @@ def run():
     def signal_handler(signal, frame):
         analyzr_process.terminate()
         analyzr_process.join()
-
-        logger.info("Bye bye :)")
 
     # Capture CTRL-C
     signal.signal(signal.SIGINT, signal_handler)
@@ -104,7 +106,7 @@ def _scan(args):
             logger.error(
                 "{fingerprinter} : Unable to load {fingerprints}".format(fingerprinter=fingerprinter.name,
                                                                          fingerprints=fingerprinter.os_fingerprint_file_name))
-
+    from analyzr import config
     if config.activescan:
         for cls in classes_in_module(active):
             scanners.append(cls())

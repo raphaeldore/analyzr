@@ -1,11 +1,6 @@
 import logging
-import os
 
-from analyzr.main import execute
 from analyzr.core import config
-from analyzr.fingerprints import EttercapFingerprinter
-from analyzr.networkdiscoverer import NetworkDiscoverer
-from analyzr.networkdiscovery import active, passive
 
 logger = logging.getLogger(__name__)
 
