@@ -33,6 +33,9 @@ def run(args):
     # Make scapy shut up
     conf.verb = 0
 
+    # set graphviz path
+    # conf.prog.dot =  os.path.abspath(os.path.join("bin", "graphviz", "bin", "dot.exe"))
+
     logger = logging.getLogger("analyzr")
     logger.setLevel(LOG_LEVELS.get(args.log_level))
 
@@ -42,7 +45,6 @@ def run(args):
     fingerprinters = list()
 
     dir = os.path.dirname(__file__)
-
     fingerprinters.append(EttercapFingerprinter(os.path.join(dir, "resources", "etter.finger.os")))
 
     for fingerprinter in fingerprinters:
