@@ -63,9 +63,11 @@ def get_local_interfaces_networks() -> (dict, dict):
     return interfaces_networks, networks_ips
 
 
-def resolve_ip(ip):
-    """rdns with a timeout"""
-    socket.setdefaulttimeout(2)
+def resolve_ip(ip, timeout: int = 1):
+    """rdns with a timeout
+    :param timeout: Timeout in secondes before calling quits on resolving the hostname.
+    """
+    socket.setdefaulttimeout(timeout)
     try:
         host = socket.gethostbyaddr(ip)
     except:
