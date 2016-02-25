@@ -1,6 +1,6 @@
-matplotlib=1.5.1
-networkx=1.11
+matplotlib==1.5.1
+networkx==1.11
 py==1.4.31
 pytest==2.8.7
 scapy-python3==0.18
-netaddr=0.7.18
+netaddr==0.7.18
