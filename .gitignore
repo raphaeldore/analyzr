@@ -107,5 +107,7 @@ crashlytics.properties
 crashlytics-build.properties
 
 # Custom
-python-sudo.sh
+graphs/*.png
+graphs/*.jpg
+graphs/*.svg
 
