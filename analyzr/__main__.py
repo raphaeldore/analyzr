@@ -1,7 +1,5 @@
 import argparse
-import signal
 import sys
-from multiprocessing import freeze_support, Process
 
 from analyzr.utils.admin import is_user_admin
 
@@ -28,30 +26,15 @@ def parse_arguments():
 
 
 def main():
-    freeze_support()
+    """The main routine."""
     args = parse_arguments()
 
     if not args.force and not is_user_admin():
         print("\033[31m [-] Please run as root. \033[0m")
         sys.exit(1)
 
-    analyzr_process = Process(target=_start_analyzr, args=(args,))
-
-    # Capture interrupt signal and cleanup before exiting
-    def signal_handler(signal, frame):
-        analyzr_process.terminate()
-        analyzr_process.join()
-        print("Bye bye.")
-
-    # Capture CTRL-C
-    signal.signal(signal.SIGINT, signal_handler)
-
-    analyzr_process.start()
-
-
-def _start_analyzr(args):
-    from analyzr import main
-    main.run(args)
+    from analyzr import analyzr
+    analyzr.run(args)
 
 
 if __name__ == "__main__":
