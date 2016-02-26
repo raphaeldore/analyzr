@@ -1,9 +1,9 @@
 import types
+from io import StringIO
 from os import path as op
 from os.path import join
-from setuptools import setup
-
-from io import StringIO
+#from setuptools import setup
+from cx_Freeze import setup, Executable
 
 
 def _read(filename):
@@ -22,13 +22,13 @@ def _read_reqs(filename):
 setup_params = dict(
     name='analyzr',
     version='1.0',
-    packages=['scripts', 'analyzr/core', 'analyzr/utils', 'analyzr/graphics', 'analyzr/topology',
-              'analyzr/fingerprints', 'analyzr/networkdiscovery'],
+    packages=['analyzr', 'analyzr/utils', 'analyzr/core', 'analyzr/fingerprints', 'analyzr/networkdiscovery'],
     entry_points={
         'console_scripts': [
-            'analyzrctl = scripts.analyzrctl:main',
+            'analyzr = analyzr:main',
         ],
     },
+    include_package_data=True,
     url='https://raphaeldore.github.io/analyzr/',
     license='MIT',
     author='Raphaël Doré & Raphaël Fournier',
