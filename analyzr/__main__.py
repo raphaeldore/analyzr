@@ -1,40 +1,18 @@
 import argparse
 import sys
 
-from analyzr.utils.admin import is_user_admin
 
+if __package__ is None and not hasattr(sys, 'frozen'):
+    # direct call of __main__.py
+    import os.path
 
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("-f",
-                        "--force",
-                        help="Force run the application. Even if not root. Warning : things most probably won't work.",
-                        action='store_true',
-                        default=False)
-    parser.add_argument("-ftcp",
-                        "--fastTCP", help="Makes TCPSYNPing only ping on port 80.",
-                        action="store_true",
-                        default=False)
-    parser.add_argument("-ll",
-                        "--log-level",
-                        help="Sets the logging level for the whole application. Possible values are : debug, info, warning, error and critical.",
-                        default="debug",
-                        choices=["debug", "info", "warning", "error", "critical"])
-
-    return parser.parse_args()
+    path = os.path.realpath(os.path.abspath(__file__))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(path)))
 
 
 def main():
-    """The main routine."""
-    args = parse_arguments()
-
-    if not args.force and not is_user_admin():
-        print("\033[31m [-] Please run as root. \033[0m")
-        sys.exit(1)
-
-    from analyzr import analyzr
-    analyzr.run(args)
+    import analyzr
+    analyzr.main()
 
 
 if __name__ == "__main__":

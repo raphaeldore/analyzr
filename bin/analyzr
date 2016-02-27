@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+
+path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'analyzr'))
+
+if os.path.exists(path):
+    sys.path.append(path)
+
+if __name__ == "__main__":
+    import analyzr
+    analyzr.main()
