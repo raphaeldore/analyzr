@@ -3,6 +3,9 @@ import socket
 from analyzr.core import config
 
 from os import path
+
+from analyzr.networktool import InvalidInterface
+
 graphs_dir = path.join(path.dirname(__file__), "..", 'graphs')
 
 __title__ = 'analyzr'
@@ -61,16 +64,13 @@ logging.config.dictConfig(logging_config)
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
-# Removes "WARNING: Mac address to reach destination not found. Using broadcast" message.
-logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
-
-
 def main():
     """The main routine."""
 
     from analyzr import constants
     import argparse
 
+    # noinspection PyClassHasNoInit
     class PortsAction(argparse.Action):
         def __call__(self, parser, namespace, values, option_string=None):
             min_value = min(values)
@@ -114,3 +114,5 @@ def main():
     except socket.error as e:
         if e.errno == socket.errno.EPERM:  # Operation not permitted
             print("\033[31m{0:s}\033[0m. Did you run as root?".format(e.strerror))
+    except InvalidInterface:
+            print("Provided network interface is invalid.")
