@@ -1,3 +1,5 @@
+from enum import Enum
+
 # List is taken from "Nmap - Scanning the Internet", DEFCON 16
 # presentation by Fyodor
 
@@ -12,3 +14,11 @@ topports = {80,     # http
             21,     # ftp
             135,    # msrpc
             25}     # smtp
+
+
+class DhcpMessageTypes(Enum):
+    MESSAGE_TYPE_OFFER = 2
+    MESSAGE_TYPE_REQUEST = 3
+    MESSAGE_TYPE_ACK = 5
+    MESSAGE_TYPE_NAK = 6
+    MESSAGE_TYPE_RELEASE = 7
