@@ -37,11 +37,11 @@ class NetworkToolFacade(object):
         pass
 
     @abc.abstractmethod
-    def ping(self, ip: str, timeout: int, verbose: bool) -> PingedHost:
+    def icmp_ping(self, ip: str, timeout: int, verbose: bool) -> PingedHost:
         """
         If host exists, will return a PingedHost namedtuple. Else returns None.
 
-        :param ip: The ip to ping
+        :param ip: The ip to icmp_ping
         :param timeout:  Time before giving up
         :param verbose: If set to True, there may be logs in stdout.
         """
@@ -83,6 +83,7 @@ class ScapyTool(NetworkToolFacade):
     # Removes "WARNING: Mac address to reach destination not found. Using broadcast" message.
     logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
     cached_host_info = None
+
     def __init__(self, interface_to_use=None):
         from scapy.all import conf
         # Make scapy shut up while sending packets
@@ -158,7 +159,7 @@ class ScapyTool(NetworkToolFacade):
 
         return macs_ips
 
-    def ping(self, ip: str, timeout: int, verbose: bool) -> PingedHost:
+    def icmp_ping(self, ip: str, timeout: int, verbose: bool) -> PingedHost:
         res = sr1(IP(dst=ip) / ICMP(), iface=self.interface_to_use, timeout=timeout, verbose=verbose)
         return PingedHost(ip=ip, ttl=res[IP].ttl) if res else None
 
