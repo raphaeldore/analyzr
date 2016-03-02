@@ -138,7 +138,7 @@ class ScapyTool(NetworkToolFacade):
         dhcp = DHCP(options=[('message-type', 'discover'), 'end'])
 
         # Send packet
-        ans = srp1(ether / ip / udp / bootp / dhcp)
+        ans = srp1(ether / ip / udp / bootp / dhcp, timeout=10)
 
         if ans and DHCP in ans:
             message_type = ans[DHCP].options[0][1]
