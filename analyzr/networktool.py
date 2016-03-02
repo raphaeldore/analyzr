@@ -13,6 +13,12 @@ class NetworkToolFacade(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, interface_to_use=None):
+        """
+        Inits the object. Raises InvalidInterface exception if given interface is invalid (maps to no interface
+        on the host).
+
+        :param interface_to_use: the network interface used by the tool
+        """
         self.interface_to_use = interface_to_use
 
     @abc.abstractproperty
