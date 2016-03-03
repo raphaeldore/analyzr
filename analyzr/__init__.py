@@ -81,7 +81,7 @@ def main():
             elif max_value > 65535:
                 parser.error("{0:d} is not a valid port number. Valid range is 1-65535 (inclusive).".format(max_value))
 
-            setattr(namespace, self.dest, set(values))
+            setattr(namespace, self.dest, list(set(values)))
 
     parser = argparse.ArgumentParser()
 
