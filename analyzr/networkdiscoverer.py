@@ -5,72 +5,107 @@ analyzr.NetworkScanner
 This modules allows to scan the network of the current host..
 """
 
+import netaddr
 from scapy.all import *
-from scapy.layers.inet import IP, UDP, TCP, traceroute
+from scapy.layers.inet import IP, UDP, traceroute
 
 from analyzr.core.entities import NetworkNode
-from analyzr.portscanthread import PortScanThread
-from analyzr.topports import topports
-from analyzr.utils.network import ScapyTCPFlag
+from analyzr.networktool import NetworkToolFacade
 
 logger = logging.getLogger(__name__)
 
 
-class NetworkDiscoverer():
-    def __init__(self, scanners: list, fingerprinters: list):
-        self.scanners = scanners
-        self.fingerprinters = fingerprinters
-        self.host_ip_address = ""
-        self.live_network_hosts = defaultdict(set)  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
+def discover():
+    pass
 
-    def discover(self):
+
+class NetworkDiscoverer():
+    # Taken from netdiscover main.c
+    # https://sourceforge.net/p/netdiscover/code/115/tree/trunk/src/main.c
+    common_networks = [
+        "192.168.0.0/16",
+        "172.16.0.0/16",
+        "172.26.0.0/16",
+        "172.27.0.0/16",
+        "172.17.0.0/16",
+        "172.18.0.0/16",
+        "172.19.0.0/16",
+        "172.20.0.0/16",
+        "172.21.0.0/16",
+        "172.22.0.0/16",
+        "172.23.0.0/16",
+        "172.24.0.0/16",
+        "172.25.0.0/16",
+        "172.28.0.0/16",
+        "172.29.0.0/16",
+        "172.30.0.0/16",
+        "172.31.0.0/16"]
+
+    # "10.0.0.0/8"
+
+    def __init__(self, network_tool: NetworkToolFacade, fingerprinters: list):
+        self.network_tool = network_tool
+        self.discovered_network_hosts = defaultdict(set)  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
+
+    def discover(self, network_ranges: list = None):
+        """
+        Scans specified network ranges to find live hosts. If no networks given, a default list is used.
+
+        Returns True if any hosts were found. False if otherwise.
+        """
         logger.info("Starting host discovery...")
-        for scanner in self.scanners:
-            scanner.scan()
-            self._add_results(scanner.scan_results)
+
+        if network_ranges:
+            networks_to_scan = network_ranges
+        else:
+            networks_to_scan = self.common_networks
+
+        for net in networks_to_scan:
+            logger.debug("Starting host discovery on network {network}...".format(network=net))
+            results = self.network_tool.arp_discover_hosts(network=net, timeout=10)
+
+            if results:
+                logger.info("Found {nb_found_hosts} hosts in {network}.".format(nb_found_hosts=len(results),
+                                                                                network=net))
+
+                for result in results:
+                    network_node = NetworkNode(ip=netaddr.IPAddress(result.ip), mac=netaddr.EUI(result.mac))
+                    self.discovered_network_hosts[net].add(network_node)
+            else:
+                logger.info("No hosts found on {network}.".format(network=net))
 
         logger.info("Discovery done.")
 
-        logger.info("The scan found these hosts: ")
-        self.pretty_print_ips()
+        if self.discovered_network_hosts:
+            return True
 
-        logger.info("Trying to identify fingerprints of live hosts...")
-        self.identify_fingerprints()
-        logger.info("...done.")
+        return False
 
-        logger.info("Drawing network graph...")
-        self.traceroute_graph()
-        logger.info("...Done")
+    # TODO: This is bad and you should feel bad
+    # def identify_fingerprints(self):
+    #     responses = dict()
+    #     for network, network_nodes in self.discovered_network_hosts.items():
+    #         for network_node in network_nodes:
+    #             srcPort = random.randint(1025, 65534)
+    #             resp = sr1(IP(dst=str(network_node.ip)) / TCP(sport=srcPort, dport=topports, flags=ScapyTCPFlag.SYN),
+    #                        timeout=1, verbose=0)
+    #             if resp:
+    #                 responses[network_node] = resp
+    #
+    #     for fingerprinter in self.fingerprinters:  # type: fingerprinter
+    #         for network_node, resp in responses.items():
+    #             os = fingerprinter.identify_os_from_pkt(resp)
+    #             if os:
+    #                 network_node.possible_fingerprints |= os
 
-        self.pretty_print_ips()
-
-    def _add_results(self, scan_results: dict):
-        for network, network_nodes in scan_results.items():
-            self.live_network_hosts[network].update(network_nodes)
-
-    def identify_fingerprints(self):
-        responses = dict()
-        for network, network_nodes in self.live_network_hosts.items():
-            for network_node in network_nodes:
-                srcPort = random.randint(1025, 65534)
-                resp = sr1(IP(dst=str(network_node.ip)) / TCP(sport=srcPort, dport=topports, flags=ScapyTCPFlag.SYN),
-                           timeout=1, verbose=0)
-                if resp:
-                    responses[network_node] = resp
-
-        for fingerprinter in self.fingerprinters:  # type: fingerprinter
-            for network_node, resp in responses.items():
-                os = fingerprinter.identify_os_from_pkt(resp)
-                if os:
-                    network_node.possible_fingerprints |= os
-
-    def traceroute_graph(self):
+    def make_network_graph(self):
         all_ips = []
-        for network, network_nodes in self.live_network_hosts.items():
+        for network, network_nodes in self.discovered_network_hosts.items():
             for network_node in network_nodes:
                 all_ips.append(str(network_node.ip))
 
         if all_ips:
+            logger.info("Drawing network graph...")
             res, unans = traceroute(all_ips, dport=[80, 443], maxttl=20, retry=-2)
             if res:
                 import matplotlib.pyplot as plt
@@ -102,13 +137,13 @@ class NetworkDiscoverer():
                 #                              base_filename="network_graph.png")
 
                 filename = "network_graph_" + datetime.datetime.now().strftime("%Y_%m_%d__%H%M%S") + ".png"
-                fullpath = os.path.abspath(os.path.join("graphs", filename))
+                fullpath = os.path.abspath(os.path.join("..", "graphs", filename))
                 plt.savefig(fullpath)
-                logger.info("Created network graph at path: {0:s}".format(fullpath))
+                logger.info("Created network graph ({0:s})".format(fullpath))
 
     def find_hops(self):
         iphops = dict()
-        for network, network_nodes in self.live_network_hosts.items():
+        for network, network_nodes in self.discovered_network_hosts.items():
             for network_node in network_nodes:
                 for hops in range(1, 28):
                     reply = sr1(IP(dst=str(network_node.ip), ttl=hops) / UDP(dport=40000), verbose=0, timeout=1)
@@ -124,25 +159,22 @@ class NetworkDiscoverer():
             print("{0:s} is {1:d} hops away!".format(str(ip), hops))
 
     def pretty_print_ips(self):
-        for network, network_nodes in self.live_network_hosts.items():
+        for network, network_nodes in self.discovered_network_hosts.items():
             print("Live hosts in network {0:s}".format(str(network)))
             print(NetworkNode.str_template.format("IP", "MAC", "Host", "Opened Ports", "Possible fingerprints"))
             for network_node in network_nodes:
                 print(network_node)
 
-    def scan_found_network_nodes_for_opened_ports(self):
-        count = sum(len(v) for v in self.live_network_hosts.values())
-        results = [None] * count
-        threads = []
-        for network, network_nodes in self.live_network_hosts.items():
-            for network_node in network_nodes:
-                t = PortScanThread(portlist=topports, tid=len(threads), target=network_node, results=results)
-                t.start()
-                threads.append(t)
+    def scan_found_network_nodes_for_opened_ports(self, ports_to_scan: list):
+        logger.info("Checking founds hosts for opened ports...")
+        logger.info("Scanning ports %s.", str(ports_to_scan).strip("[]"))
+        for network, network_nodes in self.discovered_network_hosts.items():
+            for network_node in network_nodes: # type: NetworkNode
+                opened_ports, closed_ports = self.network_tool.tcp_port_scan(str(network_node.ip), ports_to_scan)
 
-        for thread in threads:
-            thread.join()
-
-        for r in results:
-            if r:
-                print(r)
+                logger.debug("{0:s} has these ports opened: {1:s}".format(str(network_node.ip),
+                                                                          str(opened_ports).strip("[]")))
+                logger.debug("{0:s} has these ports closed: {1:s}".format(str(network_node.ip),
+                                                                          str(closed_ports).strip("[]")))
+                network_node.opened_ports = opened_ports
+                network_node.closed_ports = closed_ports
