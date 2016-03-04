@@ -4,12 +4,12 @@ import logging
 from netaddr import IPAddress, EUI
 
 
-class NetworkNode:
+class NetworkNode(object):
     """
     Represents a node in the network.
     """
 
-    # ip - mac - host - opened_ports - possibles fingerprints
+    # ip - mac - host - opened_ports - closed_ports - possibles fingerprints
     str_template = "{0:15s}|{1:17s}|{2:30s}|{3:15s}|{4:30s}"  # column widths: 15, 17, 30, 15, 30
 
     def __init__(self, ip: IPAddress = None, mac: EUI = None, host: str = None):
@@ -18,6 +18,7 @@ class NetworkNode:
         self.host = host
         self.possible_fingerprints = set()
         self.opened_ports = []
+        self.closed_ports = []
 
     def __eq__(self, other: IPAddress):
         return self.ip == other
@@ -27,7 +28,11 @@ class NetworkNode:
 
     def __str__(self):
         return self.str_template.format(
-            str(self.ip), str(self.mac), self.host if self.host else "Unknown host", str(self.opened_ports).strip("[]"),
+            str(self.ip),
+            str(self.mac),
+            self.host or "Unknown host",
+            str(self.opened_ports).strip("[]"),
+            str(self.closed_ports).strip("[]"),
             ", ".join(str(e) for e in self.possible_fingerprints))
 
 
