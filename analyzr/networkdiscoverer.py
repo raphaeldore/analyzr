@@ -23,29 +23,16 @@ class NetworkDiscoverer():
     # Taken from netdiscover main.c
     # https://sourceforge.net/p/netdiscover/code/115/tree/trunk/src/main.c
     common_networks = [
-        "192.168.0.0/16",
-        "172.16.0.0/16",
-        "172.26.0.0/16",
-        "172.27.0.0/16",
-        "172.17.0.0/16",
-        "172.18.0.0/16",
-        "172.19.0.0/16",
-        "172.20.0.0/16",
-        "172.21.0.0/16",
-        "172.22.0.0/16",
-        "172.23.0.0/16",
-        "172.24.0.0/16",
-        "172.25.0.0/16",
-        "172.28.0.0/16",
-        "172.29.0.0/16",
-        "172.30.0.0/16",
-        "172.31.0.0/16"]
+        netaddr.IPNetwork("192.168.0.0/16"),
+        netaddr.IPNetwork("172.16.0.0/12"),
+        netaddr.IPNetwork("10.0.0.0/8")]
 
     # "10.0.0.0/8"
 
     def __init__(self, network_tool: NetworkToolFacade, fingerprinters: list):
         self.network_tool = network_tool
-        self.discovered_network_hosts = defaultdict(set)  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
+        self.discovered_network_hosts = defaultdict(
+            set)  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
 
     def discover(self, network_ranges: list = None):
         """
@@ -53,16 +40,10 @@ class NetworkDiscoverer():
 
         Returns True if any hosts were found. False if otherwise.
         """
-        logger.info("Starting host discovery...")
 
-        if network_ranges:
-            networks_to_scan = network_ranges
-        else:
-            networks_to_scan = self.common_networks
-
-        for net in networks_to_scan:
+        def scan(net: netaddr.IPNetwork):
             logger.debug("Starting host discovery on network {network}...".format(network=net))
-            results = self.network_tool.arp_discover_hosts(network=net, timeout=10)
+            results = self.network_tool.arp_discover_hosts(network=str(net), timeout=10)
 
             if results:
                 logger.info("Found {nb_found_hosts} hosts in {network}.".format(nb_found_hosts=len(results),
@@ -73,6 +54,23 @@ class NetworkDiscoverer():
                     self.discovered_network_hosts[net].add(network_node)
             else:
                 logger.info("No hosts found on {network}.".format(network=net))
+
+        logger.info("Starting host discovery...")
+
+        if network_ranges:
+            networks_to_scan = [netaddr.IPNetwork(net_to_scan) for net_to_scan in network_ranges]
+        else:
+            networks_to_scan = self.common_networks
+
+        for net in networks_to_scan:
+            if net.prefixlen >= 16:
+                scan(net)
+            else:
+                # If bigger than a /16 we split the network into subnetworks to avoid flooding the network with ARP
+                # packets
+                logger.info("Splitting {0:s} into /16 subnets to avoid sending too many ARP packets.".format(str(net)))
+                for subnet in net.subnet(16):
+                    scan(subnet)
 
         logger.info("Discovery done.")
 
@@ -169,7 +167,7 @@ class NetworkDiscoverer():
         logger.info("Checking founds hosts for opened ports...")
         logger.info("Scanning ports %s.", str(ports_to_scan).strip("[]"))
         for network, network_nodes in self.discovered_network_hosts.items():
-            for network_node in network_nodes: # type: NetworkNode
+            for network_node in network_nodes:  # type: NetworkNode
                 opened_ports, closed_ports = self.network_tool.tcp_port_scan(str(network_node.ip), ports_to_scan)
 
                 logger.debug("{0:s} has these ports opened: {1:s}".format(str(network_node.ip),
