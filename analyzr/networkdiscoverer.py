@@ -6,11 +6,13 @@ This modules allows to scan the network of the current host..
 """
 
 import netaddr
+
 from scapy.all import *
 from scapy.layers.inet import IP, UDP, traceroute
 
 from analyzr.core.entities import NetworkNode
 from analyzr.networktool import NetworkToolFacade
+from analyzr.utils.useful import pprintTable
 
 logger = logging.getLogger(__name__)
 
@@ -159,9 +161,18 @@ class NetworkDiscoverer():
     def pretty_print_ips(self):
         for network, network_nodes in self.discovered_network_hosts.items():
             print("Live hosts in network {0:s}".format(str(network)))
-            print(NetworkNode.str_template.format("IP", "MAC", "Host", "Opened Ports", "Possible fingerprints"))
-            for network_node in network_nodes:
-                print(network_node)
+
+            table_data = [["IP", "MAC", "Host", "Opened Ports", "Closed Ports", "Possible Fingerprints"]]
+
+            for nn in network_nodes:
+                table_data.append([str(nn.ip or "Unknown IP"),
+                                   str(nn.mac or "Unknown MAC"),
+                                   nn.host or "Unknown Host",
+                                   str(nn.opened_ports),
+                                   str(nn.closed_ports),
+                                   str(nn.possible_fingerprints or "Unknown")])
+
+            pprintTable(table_data, sys.stdout)
 
     def scan_found_network_nodes_for_opened_ports(self, ports_to_scan: list):
         logger.info("Checking founds hosts for opened ports...")
