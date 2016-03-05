@@ -10,7 +10,7 @@ class NetworkNode(object):
     """
 
     # ip - mac - host - opened_ports - closed_ports - possibles fingerprints
-    str_template = "{0:15s}|{1:17s}|{2:30s}|{3:15s}|{4:30s}"  # column widths: 15, 17, 30, 15, 30
+    str_template = "{0:15s}|{1:17s}|{2:30s}|{3:15s}|{4:15s}|5:30s}"
 
     def __init__(self, ip: IPAddress = None, mac: EUI = None, host: str = None):
         self.ip = ip
