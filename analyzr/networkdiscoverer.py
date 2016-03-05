@@ -161,13 +161,14 @@ class NetworkDiscoverer():
         for network, network_nodes in self.discovered_network_hosts.items():
             print("Live hosts in network {0:s}".format(str(network)))
 
-            header_labels = ["IP", "MAC", "Host", "Opened Ports", "Closed Ports", "Possible Fingerprints"]
+            header_labels = ["IP", "MAC", "Host", "Hops", "Opened Ports", "Closed Ports", "Possible Fingerprints"]
             table_data = []
 
             for nn in network_nodes:
                 table_data.append([str(nn.ip or "Unknown IP"),
                                    str(nn.mac or "Unknown MAC"),
                                    nn.host or "Unknown Host",
+                                   str(nn.hops),
                                    str(nn.opened_ports),
                                    str(nn.closed_ports),
                                    str(nn.possible_fingerprints or "Unknown")])

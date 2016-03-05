@@ -9,8 +9,8 @@ class NetworkNode(object):
     Represents a node in the network.
     """
 
-    # ip - mac - host - opened_ports - closed_ports - possibles fingerprints
-    str_template = "{0:15s}|{1:17s}|{2:30s}|{3:15s}|{4:15s}|5:30s}"
+    # ip - mac - host - hops - opened_ports - closed_ports - possibles fingerprints
+    str_template = "{0:15s}|{1:17s}|{2:3s}|{3:30s}|{4:15s}|{5:15s}|6:30s}"
 
     def __init__(self, ip: IPAddress = None, mac: EUI = None, host: str = None):
         self.ip = ip
@@ -19,6 +19,7 @@ class NetworkNode(object):
         self.possible_fingerprints = set()
         self.opened_ports = []
         self.closed_ports = []
+        self.hops = 0
 
     def __eq__(self, other: IPAddress):
         return self.ip == other
@@ -31,6 +32,7 @@ class NetworkNode(object):
             str(self.ip),
             str(self.mac),
             self.host or "Unknown host",
+            str(self.hops),
             str(self.opened_ports).strip("[]"),
             str(self.closed_ports).strip("[]"),
             ", ".join(str(e) for e in self.possible_fingerprints))
