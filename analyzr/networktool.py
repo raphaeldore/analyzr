@@ -38,6 +38,16 @@ class NetworkToolFacade(object):
         pass
 
     @abc.abstractmethod
+    def route_to_target(self, target_ip: str):
+        """
+        Returns route to target, or an empty list if no route found.
+
+        :param target_ip: target ip address
+        :return: A list containing the trace of IPs to get to target.
+        """
+        pass
+
+    @abc.abstractmethod
     def icmp_ping(self, ip: str, timeout: int, verbose: bool) -> PingedHost:
         """
         If host exists, will return a PingedHost namedtuple. Else returns None.
@@ -84,7 +94,7 @@ class NetworkToolFacade(object):
 
 from scapy.all import *
 from scapy.layers.dhcp import DHCP, BOOTP
-from scapy.layers.inet import IP, ICMP, TCP
+from scapy.layers.inet import IP, ICMP, TCP, traceroute
 from scapy.layers.inet import UDP
 
 
@@ -176,6 +186,34 @@ class ScapyTool(NetworkToolFacade):
 
         return macs_ips
 
+    def route_to_target(self, target_ip: str):
+        res, unans = traceroute(target_ip, timeout=10)
+        hops = []
+
+        if res:
+
+            # Trace looks like this:
+            # {'216.58.219.238':                            <-- Destination ip
+            #     {
+            #         1: ('172.16.2.1', False),             <-- Packet number : (IP, ???? is end??)
+            #         3: ('10.170.183.93', False),
+            #         4: ('216.113.126.214', False),
+            #         5: ('72.14.216.117', False),
+            #         6: ('209.85.248.178', False),
+            #         7: ('64.233.174.117', False),
+            #         8: ('216.58.219.238', True)
+            #     }
+            # }
+
+            trace = res.get_trace()
+            host_key = next(iter(trace.keys()))  # Returns the IP of the host (Ex: 216.58.219.238)
+
+            # for each Packet number : (IP, ???? is end??)
+            for key in res.get_trace()[host_key]:
+                hops.append(trace[host_key][key][0])  # Append IP (first value in tuple)
+
+        return hops
+
     def icmp_ping(self, ip: str, timeout: int, verbose: bool) -> PingedHost:
         res = sr1(IP(dst=ip) / ICMP(), iface=self.interface_to_use, timeout=timeout, verbose=verbose)
         return PingedHost(ip=ip, ttl=res[IP].ttl) if res else None
@@ -225,9 +263,9 @@ class ScapyTool(NetworkToolFacade):
                     opened_ports.append(port)
                     # Send RST to close connection.
                     send(IP(dst=host) / TCP(sport=srcPort, dport=port, flags="R"))
-                # elif ICMP in resp:
-                #    if int(resp.getlayer(ICMP).type)==3 and int(resp.getlayer(ICMP).code) in [1,2,3,9,10,13]:
-                #        # Port state unknown... TODO: we should retry
+                    # elif ICMP in resp:
+                    #    if int(resp.getlayer(ICMP).type)==3 and int(resp.getlayer(ICMP).code) in [1,2,3,9,10,13]:
+                    #        # Port state unknown... TODO: we should retry
 
             ports_queue.task_done()
 
