@@ -168,7 +168,8 @@ class NetworkDiscoverer():
                 table_data.append([str(nn.ip or "Unknown IP"),
                                    str(nn.mac or "Unknown MAC"),
                                    nn.host or "Unknown Host",
-                                   str(nn.hops),
+                                   "{nb_hops} hops : {hops}".format(nb_hops=len(nn.hops),
+                                                                    hops=" --> ".join(hop for hop in nn.hops)),
                                    str(nn.opened_ports),
                                    str(nn.closed_ports),
                                    str(nn.possible_fingerprints or "Unknown")])

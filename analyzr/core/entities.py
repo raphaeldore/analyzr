@@ -19,7 +19,7 @@ class NetworkNode(object):
         self.possible_fingerprints = set()
         self.opened_ports = []
         self.closed_ports = []
-        self.hops = 0
+        self.hops = []
 
     def __eq__(self, other: IPAddress):
         return self.ip == other
@@ -32,7 +32,7 @@ class NetworkNode(object):
             str(self.ip),
             str(self.mac),
             self.host or "Unknown host",
-            str(self.hops),
+            "{nb_hops} hops : {hops}".format(nb_hops=len(self.hops), hops=" --> ".join(hop for hop in self.hops)),
             str(self.opened_ports).strip("[]"),
             str(self.closed_ports).strip("[]"),
             ", ".join(str(e) for e in self.possible_fingerprints))
