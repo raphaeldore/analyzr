@@ -99,47 +99,82 @@ class NetworkDiscoverer():
     #                 network_node.possible_fingerprints |= os
 
     def make_network_graph(self):
-        all_ips = []
+        all_nodes = []
         for network, network_nodes in self.discovered_network_hosts.items():
             for network_node in network_nodes:
-                all_ips.append(str(network_node.ip))
+                all_nodes.append(network_node)
 
-        if all_ips:
+        if all_nodes:
             logger.info("Drawing network graph...")
-            res, unans = traceroute(all_ips, dport=[80, 443], maxttl=20, retry=-2)
-            if res:
-                import matplotlib.pyplot as plt
-                import datetime
-                import networkx as nx
+            #res, unans = traceroute([str(nn.ip) for nn in all_nodes], dport=[80, 443], maxttl=20, retry=-2)
+            #res, unans = traceroute("google.com", dport=[80, 443], maxttl=20, retry=-2)
 
-                # res.conversations(draw=True, getsrcdst=lambda x:(x['IP'].src + "\n" + resolve_ip(x['IP'].src), x['IP'].dst + "\n" + resolve_ip(x['IP'].dst)))
-                # res.conversations(draw=True,
-                #                   edge_color='blue',
-                #                   # NetworkX stuff
-                #                   node_size=1600,
-                #                   node_color='blue',
-                #                   font_size=12,
-                #                   alpha=0.3,
-                #                   font_family='sans-serif')
+            import matplotlib.pyplot as plt
+            import datetime
+            import networkx as nx
 
-                gr = res.conversations(draw=False)
+            getsrcdst = lambda x: (x['IP'].src, x['IP'].dst)
 
-                nx.draw(gr,
-                        with_labels=True,
-                        edge_color='blue',
-                        node_size=1600,
-                        node_color='blue',
-                        font_size=12,
-                        alpha=0.3,
-                        font_family='sans-serif')
+            # res.conversations(draw=True, getsrcdst=lambda x:(x['IP'].src + "\n" + resolve_ip(x['IP'].src), x['IP'].dst + "\n" + resolve_ip(x['IP'].dst)))
+            # res.conversations(draw=True,
+            #                   edge_color='blue',
+            #                   # NetworkX stuff
+            #                   node_size=1600,
+            #                   node_color='blue',
+            #                   font_size=12,
+            #                   alpha=0.3,
+            #                   font_family='sans-serif')
 
-                # filename = get_next_file_path(folder=os.path.abspath(os.path.join("graphs")),
-                #                              base_filename="network_graph.png")
+            nodes = {}
+            current_host_info = self.network_tool.host_information
+            host_ip = current_host_info.ip
 
-                filename = "network_graph_" + datetime.datetime.now().strftime("%Y_%m_%d__%H%M%S") + ".png"
-                fullpath = os.path.abspath(os.path.join("..", "graphs", filename))
-                plt.savefig(fullpath)
-                logger.info("Created network graph ({0:s})".format(fullpath))
+            # on bâti un dictionnaire du genre:
+            # {'172.16.2.235': '192.168.1.1', '192.168.1.1': '167.1.2.4', '167.1.2.4': '10.0.0.4', '10.0.0.4': '204.3.32.21'}
+            for nn in all_nodes:  # type: NetworkNode
+                if not nn.hops:
+                    continue
+
+                next_hop = nn.hops[0]
+                nodes[host_ip] = next_hop
+
+                for i in range(1, len(nn.hops)):
+                    ip = nn.hops[i]
+                    nodes[next_hop] = ip
+                    next_hop = ip
+
+            val_map = {}
+            for nn in all_nodes:
+                val_map[str(nn.ip)] = 0.5714285714285714
+
+            gr = nx.Graph()
+
+            for s, d in nodes.items():
+                if s not in gr:
+                    gr.add_node(s)
+                if d not in gr:
+                    gr.add_node(d)
+                gr.add_edge(s, d)
+
+            values = [val_map.get(node, 0.25) for node in gr.nodes()]
+            nx.draw(gr, cmap=plt.get_cmap('jet'), node_color=values, with_labels=True)
+
+            # nx.draw(gr,
+            #         with_labels=True,
+            #         edge_color='blue',
+            #         node_size=1600,
+            #         node_color='blue',
+            #         font_size=12,
+            #         alpha=0.3,
+            #         font_family='sans-serif')
+
+            # filename = get_next_file_path(folder=os.path.abspath(os.path.join("graphs")),
+            #                              base_filename="network_graph.png")
+
+            filename = "network_graph_" + datetime.datetime.now().strftime("%Y_%m_%d__%H%M%S") + ".png"
+            fullpath = os.path.abspath(os.path.join("..", "graphs", filename))
+            plt.savefig(fullpath)
+            logger.info("Created network graph ({0:s})".format(fullpath))
 
     def find_hops(self):
         logger.info("Attempting to find hops needed to reach discovered hosts...")
