@@ -1,14 +1,14 @@
 import abc
 import threading
 from collections import namedtuple
-from typing import List, Tuple
+from typing import List, Tuple, NamedTuple
 
 from analyzr import constants
 from analyzr.constants import NUM_PING_THREADS, TCPFlag
 
 ArpDiscoveredHost = namedtuple("ArpDiscoveredHost", ["ip", "mac"])
 PingedHost = namedtuple("PingedHost", ["ip", "ttl"])
-HostInfo = namedtuple("HostInfo", ["ip", "ip_network", "gateway_ip", "dhcp_server_ip", "interface_name"])
+HostInfo = NamedTuple("HostInfo", [("ip", str), ("ip_network", str), ("gateway_ip", str), ("dhcp_server_ip", str), ("interface_name", str)])
 
 
 class NetworkToolFacade(object):
@@ -23,7 +23,8 @@ class NetworkToolFacade(object):
         """
         self.interface_to_use = interface_to_use
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def host_information(self) -> HostInfo:
         pass
 
@@ -122,12 +123,13 @@ class ScapyTool(NetworkToolFacade):
 
         self.logger = logging.getLogger(__name__)
 
-        self.cached_host_info = self.host_information()
+        self.cached_host_info = self.host_information
         if not self.cached_host_info:
             raise InvalidInterface
 
         self.logger.debug("Current host info: {}".format(self.cached_host_info))
 
+    @property
     def host_information(self) -> HostInfo:
         if self.cached_host_info:
             return self.cached_host_info
