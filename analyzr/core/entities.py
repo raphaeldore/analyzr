@@ -1,7 +1,7 @@
 import abc
 import logging
 
-from netaddr import IPAddress, EUI
+import netaddr
 
 
 class NetworkNode(object):
@@ -12,7 +12,7 @@ class NetworkNode(object):
     # ip - mac - host - hops - opened_ports - closed_ports - possibles fingerprints
     str_template = "{0:15s}|{1:17s}|{2:3s}|{3:30s}|{4:15s}|{5:15s}|6:30s}"
 
-    def __init__(self, ip: IPAddress = None, mac: EUI = None, host: str = None):
+    def __init__(self, ip: netaddr.IPAddress = None, mac: netaddr.EUI = None, host: str = None):
         self.ip = ip
         self.mac = mac
         self.host = host
@@ -21,7 +21,7 @@ class NetworkNode(object):
         self.closed_ports = []
         self.hops = []
 
-    def __eq__(self, other: IPAddress):
+    def __eq__(self, other: netaddr.IPAddress):
         return self.ip == other
 
     def __hash__(self):
