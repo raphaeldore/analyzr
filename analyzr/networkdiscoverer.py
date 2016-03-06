@@ -7,7 +7,7 @@ This modules allows to scan the network of the current host..
 
 import netaddr
 from scapy.all import *
-from scapy.layers.inet import IP, UDP, traceroute
+from scapy.layers.inet import traceroute
 
 from analyzr.core.entities import NetworkNode
 from analyzr.networktool import NetworkToolFacade
@@ -141,21 +141,13 @@ class NetworkDiscoverer():
                 logger.info("Created network graph ({0:s})".format(fullpath))
 
     def find_hops(self):
-        iphops = dict()
+        logger.info("Attempting to find hops needed to reach discovered hosts...")
         for network, network_nodes in self.discovered_network_hosts.items():
-            for network_node in network_nodes:
-                for hops in range(1, 28):
-                    reply = sr1(IP(dst=str(network_node.ip), ttl=hops) / UDP(dport=40000), verbose=0, timeout=1)
-                    if reply is None:
-                        # No reply
-                        break
-                    elif reply.type == 3:
-                        # On a atteint notre destination!
-                        iphops[network_node.ip] = hops
-                        break
-
-        for ip, hops in iphops.items():
-            print("{0:s} is {1:d} hops away!".format(str(ip), hops))
+            for network_node in network_nodes:  # type: NetworkNode
+                logger.debug("Finding hops for {ip}".format(ip=str(network_node.ip)))
+                network_node.hops = self.network_tool.route_to_target(str(network_node.ip))
+                logger.debug("Route to get to {ip} : {route}".format(ip=str(network_node.ip),
+                                                                     route=" --> ".join(network_node.hops)))
 
     def pretty_print_ips(self):
         for network, network_nodes in self.discovered_network_hosts.items():
@@ -168,8 +160,8 @@ class NetworkDiscoverer():
                 table_data.append([str(nn.ip or "Unknown IP"),
                                    str(nn.mac or "Unknown MAC"),
                                    nn.host or "Unknown Host",
-                                   "{nb_hops} hops : {hops}".format(nb_hops=len(nn.hops),
-                                                                    hops=" --> ".join(hop for hop in nn.hops)),
+                                   "{hops} ({nb_hops})".format(hops=" --> ".join(hop for hop in nn.hops),
+                                                               nb_hops=len(nn.hops)),
                                    str(nn.opened_ports),
                                    str(nn.closed_ports),
                                    str(nn.possible_fingerprints or "Unknown")])
