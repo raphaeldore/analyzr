@@ -99,74 +99,78 @@ class NetworkDiscoverer():
     #                 network_node.possible_fingerprints |= os
 
     def make_network_graph(self):
-        all_nodes = []
+        hosts = set()
+        devices = set()
+
         for network, network_nodes in self.discovered_network_hosts.items():
             for network_node in network_nodes:
-                all_nodes.append(network_node)
+                hosts.add(network_node)
 
-        if all_nodes:
+        if hosts:
             logger.info("Drawing network graph...")
-            #res, unans = traceroute([str(nn.ip) for nn in all_nodes], dport=[80, 443], maxttl=20, retry=-2)
-            #res, unans = traceroute("google.com", dport=[80, 443], maxttl=20, retry=-2)
 
             import matplotlib.pyplot as plt
             import datetime
             import networkx as nx
 
-            getsrcdst = lambda x: (x['IP'].src, x['IP'].dst)
-
-            # res.conversations(draw=True, getsrcdst=lambda x:(x['IP'].src + "\n" + resolve_ip(x['IP'].src), x['IP'].dst + "\n" + resolve_ip(x['IP'].dst)))
-            # res.conversations(draw=True,
-            #                   edge_color='blue',
-            #                   # NetworkX stuff
-            #                   node_size=1600,
-            #                   node_color='blue',
-            #                   font_size=12,
-            #                   alpha=0.3,
-            #                   font_family='sans-serif')
-
-            nodes = {}
+            nodes = set()
             current_host_info = self.network_tool.host_information
             host_ip = current_host_info.ip
+            lone_nodes = set()
 
-            # on bâti un dictionnaire du genre:
-            # {'172.16.2.235': '192.168.1.1', '192.168.1.1': '167.1.2.4', '167.1.2.4': '10.0.0.4', '10.0.0.4': '204.3.32.21'}
-            for nn in all_nodes:  # type: NetworkNode
+            # on bâti un set du genre:
+            #
+            #      source        destination
+            # {('172.16.2.243', '172.16.2.1'), ('172.16.2.243', '172.16.2.8')}
+            for nn in hosts:  # type: NetworkNode
                 if not nn.hops:
+                    lone_nodes.add(str(nn.ip))
                     continue
 
                 next_hop = nn.hops[0]
-                nodes[host_ip] = next_hop
+                nodes.add((host_ip, next_hop))
 
                 for i in range(1, len(nn.hops)):
                     ip = nn.hops[i]
-                    nodes[next_hop] = ip
+                    nodes.add((next_hop, ip))
                     next_hop = ip
 
             val_map = {}
-            for nn in all_nodes:
+            for nn in hosts:
+                # TODO:
+                # if nn.type != "host":
+                #     continue
+
                 val_map[str(nn.ip)] = 0.5714285714285714
 
             gr = nx.Graph()
 
-            for s, d in nodes.items():
+            for s, d in nodes:
                 if s not in gr:
                     gr.add_node(s)
                 if d not in gr:
                     gr.add_node(d)
                 gr.add_edge(s, d)
 
-            values = [val_map.get(node, 0.25) for node in gr.nodes()]
-            nx.draw(gr, cmap=plt.get_cmap('jet'), node_color=values, with_labels=True)
+            for s in lone_nodes:
+                gr.add_node(s)
 
-            # nx.draw(gr,
-            #         with_labels=True,
-            #         edge_color='blue',
-            #         node_size=1600,
-            #         node_color='blue',
-            #         font_size=12,
-            #         alpha=0.3,
-            #         font_family='sans-serif')
+            values = [val_map.get(node, 0.25) for node in gr.nodes()]
+
+            plt.figure(figsize=(20, 20))
+            plt.rcParams.update({'axes.titlesize': 'large'})
+            plt.title("Scan Topology", fontsize=20)
+
+            nx.draw(gr,
+                    with_labels=True,
+                    edge_color='blue',
+                    node_size=7000,
+                    node_color=values,
+                    font_size=12,
+                    alpha=0.3,
+                    font_family='sans-serif',
+                    cmap=plt.get_cmap('jet'),
+                    )
 
             # filename = get_next_file_path(folder=os.path.abspath(os.path.join("graphs")),
             #                              base_filename="network_graph.png")
