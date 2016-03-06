@@ -4,6 +4,7 @@ analyzr.NetworkScanner
 
 This modules allows to scan the network of the current host..
 """
+from typing import List
 
 import netaddr
 from scapy.all import *
@@ -149,6 +150,8 @@ class NetworkDiscoverer():
                 logger.debug("Route to get to {ip} : {route}".format(ip=str(network_node.ip),
                                                                      route=" --> ".join(network_node.hops)))
 
+        logger.info("Hops discovery done.")
+
     def pretty_print_ips(self):
         for network, network_nodes in self.discovered_network_hosts.items():
             print("Live hosts in network {0:s}".format(str(network)))
@@ -168,7 +171,7 @@ class NetworkDiscoverer():
 
             pprint_table(table_data, header_labels=header_labels, blank_line_after_header=True, out=sys.stdout)
 
-    def scan_found_network_nodes_for_opened_ports(self, ports_to_scan: list):
+    def scan_found_network_nodes_for_opened_ports(self, ports_to_scan: List[int]):
         logger.info("Checking founds hosts for opened ports...")
         logger.info("Scanning ports %s.", str(ports_to_scan).strip("[]"))
         for network, network_nodes in self.discovered_network_hosts.items():

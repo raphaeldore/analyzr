@@ -1,6 +1,7 @@
 import abc
 import threading
 from collections import namedtuple
+from typing import List, Tuple
 
 from analyzr import constants
 from analyzr.constants import NUM_PING_THREADS, TCPFlag
@@ -13,7 +14,7 @@ HostInfo = namedtuple("HostInfo", ["ip", "ip_network", "gateway_ip", "dhcp_serve
 class NetworkToolFacade(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, interface_to_use=None):
+    def __init__(self, interface_to_use: str = None):
         """
         Inits the object. Raises InvalidInterface exception if given interface is invalid (maps to no interface
         on the host).
@@ -27,8 +28,10 @@ class NetworkToolFacade(object):
         pass
 
     @abc.abstractmethod
-    def arp_discover_hosts(self, network: str, timeout: int,
-                           verbose: bool = False) -> list:  # Python 3.5 List[ArpDiscoveredHost]:
+    def arp_discover_hosts(self,
+                           network: str,
+                           timeout: int,
+                           verbose: bool = False) -> List[ArpDiscoveredHost]:
         """
         Returns list of ArpDiscoveredHost
         :param network:
@@ -70,7 +73,7 @@ class NetworkToolFacade(object):
         pass
 
     @abc.abstractmethod
-    def tcp_port_scan(self, ip: str, ports_to_scan: list) -> (list, list):
+    def tcp_port_scan(self, ip: str, ports_to_scan: List[int]) -> Tuple[List[int], List[int]]:
         """
         Checks each port of ports_to_scan to see if it is opened on the host.
 
@@ -175,8 +178,10 @@ class ScapyTool(NetworkToolFacade):
 
         return None
 
-    def arp_discover_hosts(self, network: str, timeout: int,
-                           verbose: bool = False) -> list:  # type: List[ArpDiscoveredHost]
+    def arp_discover_hosts(self,
+                           network: str,
+                           timeout: int,
+                           verbose: bool = False) -> List[ArpDiscoveredHost]:
         from scapy.layers.l2 import arping
         ans, unans = arping(network, iface=self.interface_to_use, timeout=timeout, verbose=verbose)
 
@@ -221,7 +226,7 @@ class ScapyTool(NetworkToolFacade):
     def identify_host_os(self, ip: str) -> str:
         pass
 
-    def tcp_port_scan(self, ip: str, ports_to_scan: list) -> (list, list):
+    def tcp_port_scan(self, ip: str, ports_to_scan: List[int]) -> Tuple[List[int], List[int]]:
         ports_queue = queue.Queue()
         opened_ports = []
 
