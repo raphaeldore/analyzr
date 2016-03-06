@@ -194,15 +194,15 @@ class ScapyTool(NetworkToolFacade):
         return macs_ips
 
     def route_to_target(self, target_ip: str):
-        res, unans = traceroute(target_ip, timeout=10)
+        ans, unans = traceroute(target_ip, timeout=10)
         hops = []
 
-        if res:
+        if ans:
 
             # Trace looks like this:
             # {'216.58.219.238':                            <-- Destination ip
             #     {
-            #         1: ('172.16.2.1', False),             <-- Packet number : (IP, ???? is end??)
+            #         1: ('172.16.2.1', False),             <-- Packet number : (IP, ICMP not in packet)
             #         3: ('10.170.183.93', False),
             #         4: ('216.113.126.214', False),
             #         5: ('72.14.216.117', False),
@@ -212,11 +212,11 @@ class ScapyTool(NetworkToolFacade):
             #     }
             # }
 
-            trace = res.get_trace()
+            trace = ans.get_trace()
             host_key = next(iter(trace.keys()))  # Returns the IP of the host (Ex: 216.58.219.238)
 
-            # for each Packet number : (IP, ???? is end??)
-            for key in res.get_trace()[host_key]:
+            # for each Packet number : (IP, ICMP not in packet)
+            for key in ans.get_trace()[host_key]:
                 hops.append(trace[host_key][key][0])  # Append IP (first value in tuple)
 
         return hops
