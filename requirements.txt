@@ -9,3 +9,4 @@ python-dateutil==2.5.0
 pytz==2015.7
 scapy-python3==0.18
 six==1.10.0
+texttable==0.8.4
