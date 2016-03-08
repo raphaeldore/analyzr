@@ -8,11 +8,10 @@ from typing import List
 
 import netaddr
 from scapy.all import *
-from scapy.layers.inet import traceroute
+from texttable import Texttable
 
 from analyzr.core.entities import NetworkNode
 from analyzr.networktool import NetworkToolFacade
-from analyzr.utils.useful import pprint_table
 
 logger = logging.getLogger(__name__)
 
@@ -192,23 +191,37 @@ class NetworkDiscoverer():
         logger.info("Hops discovery done.")
 
     def pretty_print_ips(self):
+        header_labels = ["IP", "MAC", "Host", "Hops", "Opened Ports", "Closed Ports", "Possible Fingerprints"]
+        table = Texttable(max_width=230)
+
+        # We only want the header and the horizontal lines
+        table.set_deco(Texttable.HEADER | Texttable.HLINES)
+
+        # All columns are of type str
+        table.set_cols_dtype(["t"] * len(header_labels))
+
+        # All columns left align
+        table.set_cols_align(["l"] * len(header_labels))
+
+        table.set_cols_width([15, 17, 30, 58, 30, 30, 50])
+
         for network, network_nodes in self.discovered_network_hosts.items():
+            table.header(header_labels)
+
             print("Live hosts in network {0:s}".format(str(network)))
 
-            header_labels = ["IP", "MAC", "Host", "Hops", "Opened Ports", "Closed Ports", "Possible Fingerprints"]
-            table_data = []
-
             for nn in network_nodes:
-                table_data.append([str(nn.ip or "Unknown IP"),
-                                   str(nn.mac or "Unknown MAC"),
-                                   nn.host or "Unknown Host",
-                                   "{hops} ({nb_hops})".format(hops=" --> ".join(hop for hop in nn.hops),
-                                                               nb_hops=len(nn.hops)),
-                                   str(nn.opened_ports),
-                                   str(nn.closed_ports),
-                                   str(nn.possible_fingerprints or "Unknown")])
+                table.add_row([str(nn.ip or "Unknown IP"),
+                               str(nn.mac or "Unknown MAC"),
+                               nn.host or "Unknown Host",
+                               "{hops} ({nb_hops})".format(hops=" --> ".join(hop for hop in nn.hops),
+                                                           nb_hops=len(nn.hops)),
+                               str(nn.opened_ports),
+                               str(nn.closed_ports),
+                               str(nn.possible_fingerprints or "Unknown")])
 
-            pprint_table(table_data, header_labels=header_labels, blank_line_after_header=True, out=sys.stdout)
+            print(table.draw())
+            table.reset()
 
     def scan_found_network_nodes_for_opened_ports(self, ports_to_scan: List[int]):
         logger.info("Checking founds hosts for opened ports...")
