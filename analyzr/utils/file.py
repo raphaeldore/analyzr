@@ -16,12 +16,22 @@ def open_with_error(filename: str, mode: str = "r", encoding: str = "utf-8"):
 
 def get_next_file_path(folder: str, base_filename: str):
     """
-
     Python version of this C# code: http://stackoverflow.com/a/1078898
 
-    :param folder: Full path to folder (Ex: C:\\users\\bob\\images\\). If last path separator is omitted, then the function
-     adds it.
-    :param base_filename: The base filename of the file (Ex: image.png).
+    Given a base file name, creates a unique filename. Check to see if the given file exists, and if it does
+    tries to find the next available file name by appending numbers to the base filename until a valid filename is
+    found.
+
+    :param folder: Full path to folder. If last path separator is omitted, then the function adds it. Ex:
+
+        ``C:\\users\\bob\\images\\``
+
+        ``C:\\users\\bob\\images`` (will add the backslash)
+
+    :param base_filename: The base filename of the file. Ex:
+
+        ``image.png``
+
     :return: The next available filename (Ex: image_2.png).
 
     """
