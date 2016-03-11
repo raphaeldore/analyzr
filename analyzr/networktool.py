@@ -80,8 +80,11 @@ class NetworkToolFacade(object):
 
         Returns tuple: list of opened ports (sorted in order), list of closed ports (sorted in order).
         Never returns None. Both lists will always be at least empty.
-        :param ip:
-        :param ports_to_scan:
+
+        :param ip: The ip to scan for opened ports
+        :param ports_to_scan: The ports to scan on the host.
+
+        :returns tuple opened_ports, closed_ports.
         """
         pass
 
