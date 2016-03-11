@@ -16,10 +16,6 @@ from analyzr.networktool import NetworkToolFacade
 logger = logging.getLogger(__name__)
 
 
-def discover():
-    pass
-
-
 class NetworkDiscoverer():
     # Adapted from netdiscover main.c
     # https://sourceforge.net/p/netdiscover/code/115/tree/trunk/src/main.c
@@ -43,7 +39,7 @@ class NetworkDiscoverer():
         Returns True if any hosts were found. False if otherwise.
         """
 
-        def scan(net: netaddr.IPNetwork):
+        def _discover(net: netaddr.IPNetwork):
             logger.debug("Starting host discovery on network {network}...".format(network=net))
             results = self.network_tool.arp_discover_hosts(network=str(net), timeout=10)
 
@@ -66,13 +62,13 @@ class NetworkDiscoverer():
 
         for net in networks_to_scan:
             if net.prefixlen >= 16:
-                scan(net)
+                _discover(net)
             else:
                 # If bigger than a /16 we split the network into subnetworks to avoid flooding the network with ARP
                 # packets
                 logger.info("Splitting {0:s} into /16 subnets to avoid sending too many ARP packets.".format(str(net)))
                 for subnet in net.subnet(16):
-                    scan(subnet)
+                    _discover(subnet)
 
         logger.info("Discovery done.")
 
