@@ -21,8 +21,9 @@ def discover():
 
 
 class NetworkDiscoverer():
-    # Taken from netdiscover main.c
+    # Adapted from netdiscover main.c
     # https://sourceforge.net/p/netdiscover/code/115/tree/trunk/src/main.c
+    # And improved by using netaddr.
     common_networks = [
         netaddr.IPNetwork("192.168.0.0/16"),
         netaddr.IPNetwork("172.16.0.0/12"),
