@@ -32,7 +32,7 @@ class NetworkDiscoverer():
         self.discovered_network_hosts = defaultdict(
             set)  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
 
-    def discover(self, network_ranges: list = None):
+    def discover(self, network_ranges: List[str] = None):
         """
         Scans specified network ranges to find live hosts. If no networks given, a default list is used.
 
