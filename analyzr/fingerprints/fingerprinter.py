@@ -1,18 +1,10 @@
-import collections
-import logging
-
 from scapy import packet
+from scapy.all import *
 from scapy.layers.inet import IP, TCP
 
 from analyzr.core.entities import AnalyzrModule
 from analyzr.utils.file import open_with_error
 from analyzr.utils.network import TCPFlag, IPFlag
-
-
-class NodeFingerprint:
-    def __init__(self, os: str = None, category: str = None, family: str = None, opened_tcp_ports: list = None):
-        self.os = os
-        self.opened_tcp_ports = opened_tcp_ports
 
 
 class Fingerprinter(AnalyzrModule):
@@ -104,6 +96,7 @@ class EttercapFingerprinter(Fingerprinter):
         except (TypeError, ValueError):
             return {}
 
+    # TODO: Remove scapy dependency by moving this to ScapyTool
     def _pkt_to_ettercap_fingerprint(self, pkt: packet) -> (EttercapFingerprint, EttercapFingerprint):
         # We don't want to modify the original packet
         pkt = pkt.copy()
