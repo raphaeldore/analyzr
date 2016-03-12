@@ -6,9 +6,10 @@ from typing import List, Tuple, NamedTuple
 from analyzr import constants
 from analyzr.constants import NUM_PING_THREADS, TCPFlag
 
-ArpDiscoveredHost = namedtuple("ArpDiscoveredHost", ["ip", "mac"])
+DiscoveredHost = namedtuple("DiscoveredHost", ["ip", "mac"])
 PingedHost = namedtuple("PingedHost", ["ip", "ttl"])
-HostInfo = NamedTuple("HostInfo", [("ip", str), ("ip_network", str), ("gateway_ip", str), ("dhcp_server_ip", str), ("interface_name", str)])
+HostInfo = NamedTuple("HostInfo", [("ip", str), ("ip_network", str), ("gateway_ip", str), ("dhcp_server_ip", str),
+                                   ("interface_name", str)])
 
 
 class NetworkToolFacade(object):
@@ -32,9 +33,9 @@ class NetworkToolFacade(object):
     def arp_discover_hosts(self,
                            network: str,
                            timeout: int,
-                           verbose: bool = False) -> List[ArpDiscoveredHost]:
+                           verbose: bool = False) -> List[DiscoveredHost]:
         """
-        Returns list of ArpDiscoveredHost
+        Returns list of DiscoveredHost
         :param network:
         :param timeout:
         :param verbose:
@@ -114,7 +115,7 @@ class ScapyTool(NetworkToolFacade):
     logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
     cached_host_info = None
 
-    def __init__(self, interface_to_use=None):
+    def __init__(self, interface_to_use: str = None):
         from scapy.all import conf
         # Make scapy shut up while sending packets
         conf.verb = 0
@@ -186,13 +187,13 @@ class ScapyTool(NetworkToolFacade):
     def arp_discover_hosts(self,
                            network: str,
                            timeout: int,
-                           verbose: bool = False) -> List[ArpDiscoveredHost]:
+                           verbose: bool = False) -> List[DiscoveredHost]:
         from scapy.layers.l2 import arping
         ans, unans = arping(network, iface=self.interface_to_use, timeout=timeout, verbose=verbose)
 
         macs_ips = []
         for s, r in ans.res:
-            macs_ips.append(ArpDiscoveredHost(ip=r[ARP].psrc, mac=r[Ether].src))
+            macs_ips.append(DiscoveredHost(ip=r[ARP].psrc, mac=r[Ether].src))
 
         return macs_ips
 
