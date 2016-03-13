@@ -4,7 +4,8 @@ from scapy.layers.inet import IP, TCP
 
 from analyzr.core import AnalyzrModule
 from analyzr.utils.file import open_with_error
-from analyzr.utils.network import TCPFlag, IPFlag
+from analyzr.constants import TCPFlag
+from analyzr.constants import IPFlag
 
 
 class Fingerprinter(AnalyzrModule):
