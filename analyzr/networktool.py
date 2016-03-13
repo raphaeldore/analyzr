@@ -127,6 +127,8 @@ class ScapyTool(NetworkToolFacade):
     logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
     cached_host_info = None
 
+    scapy_tcp_flags = {"SYN": "S", "ACK": "A", "RST": "R"}
+
     def __init__(self, interface_to_use: str = None):
         from scapy.all import conf
         # Make scapy shut up while sending packets
@@ -291,7 +293,7 @@ class ScapyTool(NetworkToolFacade):
 
                 # Send SYN with random Src Port for each Dst port
                 srcPort = random.randint(1025, 65534)
-                resp = sr1(IP(dst=ip) / TCP(sport=srcPort, dport=port, flags="S"), timeout=1)
+                resp = sr1(IP(dst=ip) / TCP(sport=srcPort, dport=port, flags=self.scapy_tcp_flags["SYN"]), timeout=1)
                 if resp and resp.haslayer(TCP):
                     if resp[TCP].flags == (TCPFlag.SYN | TCPFlag.ACK):
                         # YAY the port is opened
@@ -299,7 +301,7 @@ class ScapyTool(NetworkToolFacade):
                                           .format(thread_name=threading.current_thread().name, port=port))
                         opened_ports.append(port)
                         # Send RST to close connection.
-                        send(IP(dst=ip) / TCP(sport=srcPort, dport=port, flags="R"))
+                        send(IP(dst=ip) / TCP(sport=srcPort, dport=port, flags=self.scapy_tcp_flags["RST"]))
                         # elif ICMP in resp:
                         #    if int(resp.getlayer(ICMP).type)==3 and int(resp.getlayer(ICMP).code) in [1,2,3,9,10,13]:
                         #        # Port state unknown... TODO: we should retry
