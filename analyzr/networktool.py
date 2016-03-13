@@ -201,6 +201,9 @@ class ScapyTool(NetworkToolFacade):
                            timeout: int,
                            verbose: bool = False) -> List[DiscoveredHost]:
         from scapy.layers.l2 import arping
+
+        self.logger.info("Starting ARP discover for {net}.".format(net=network))
+
         ans, unans = arping(network, iface=self.interface_to_use, timeout=timeout, verbose=verbose)
 
         macs_ips = []
@@ -211,6 +214,9 @@ class ScapyTool(NetworkToolFacade):
 
     def passive_discover_hosts(self, networks: List[str], timeout_in_secs: int) -> List[DiscoveredHost]:
         import netaddr
+
+        self.logger.info("Starting passive host discovery for {nets}.".format(nets=", ".join(networks)))
+
         networks = [netaddr.IPNetwork(net) for net in networks]
 
         ans = sniff(timeout=timeout_in_secs, iface=self.interface_to_use)
@@ -242,8 +248,10 @@ class ScapyTool(NetworkToolFacade):
         ans, unans = traceroute(target_ip, timeout=10)
         hops = []
 
-        if ans:
+        self.logger.info("Finding route to target {ip}.".format(ip=target_ip))
 
+        if ans:
+            self.logger.info("Route found.")
             # Trace looks like this:
             # {'216.58.219.238':                            <-- Destination ip
             #     {
@@ -263,11 +271,15 @@ class ScapyTool(NetworkToolFacade):
             # for each Packet number : (IP, ICMP not in packet)
             for key in ans.get_trace()[host_key]:
                 hops.append(trace[host_key][key][0])  # Append IP (first value in tuple)
+        else:
+            self.logger.info("No route was found.")
 
         return hops
 
     def icmp_ping(self, ip: str, timeout: int, verbose: bool) -> PingedHost:
+        self.logger.info("Pinging {ip}.".format(ip=ip))
         res = sr1(IP(dst=ip) / ICMP(), iface=self.interface_to_use, timeout=timeout, verbose=verbose)
+
         return PingedHost(ip=ip, ttl=res[IP].ttl) if res else None
 
     def identify_host_os(self, ip: str) -> str:
