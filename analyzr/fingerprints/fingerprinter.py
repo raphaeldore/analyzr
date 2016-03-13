@@ -2,7 +2,7 @@ from scapy import packet
 from scapy.all import *
 from scapy.layers.inet import IP, TCP
 
-from analyzr.core.entities import AnalyzrModule
+from analyzr.core import AnalyzrModule
 from analyzr.utils.file import open_with_error
 from analyzr.utils.network import TCPFlag, IPFlag
 

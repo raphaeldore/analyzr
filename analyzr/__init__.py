@@ -1,7 +1,5 @@
 import socket
 
-from analyzr.core import config
-
 from os import path
 
 from analyzr.networktool import InvalidInterface
@@ -17,7 +15,6 @@ __copyright__ = 'Copyright 2016 Raphaël Doré & Raphaël Fournier'
 __all__ = [
     'core',
     'graphics',
-    'networkdiscovery',
     'topology',
     'utils'
 ]

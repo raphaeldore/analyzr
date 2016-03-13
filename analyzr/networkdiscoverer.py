@@ -10,7 +10,7 @@ import netaddr
 from scapy.all import *
 from texttable import Texttable
 
-from analyzr.core.entities import NetworkNode
+from analyzr.core import NetworkNode
 from analyzr.networktool import NetworkToolFacade
 
 logger = logging.getLogger(__name__)
