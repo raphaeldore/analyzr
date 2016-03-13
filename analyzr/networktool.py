@@ -43,6 +43,18 @@ class NetworkToolFacade(object):
         pass
 
     @abc.abstractmethod
+    def passive_discover_hosts(self,
+                               networks: List[str],
+                               timeout_in_secs: int) -> List[DiscoveredHost]:
+        """
+
+        :param networks: Only check for traffic that comes from these networks.
+                         Networks must be in CIRD format (I.E: 192.168.1.0/24)
+
+        :param timeout_in_secs: Number of seconds to passively scan the network before stopping.
+        """
+
+    @abc.abstractmethod
     def route_to_target(self, target_ip: str):
         """
         Returns route to target, or an empty list if no route found.
@@ -196,6 +208,35 @@ class ScapyTool(NetworkToolFacade):
             macs_ips.append(DiscoveredHost(ip=r[ARP].psrc, mac=r[Ether].src))
 
         return macs_ips
+
+    def passive_discover_hosts(self, networks: List[str], timeout_in_secs: int) -> List[DiscoveredHost]:
+        import netaddr
+        networks = [netaddr.IPNetwork(net) for net in networks]
+
+        ans = sniff(timeout=timeout_in_secs, iface=self.interface_to_use)
+        discovered_hosts = set()
+
+        for pkt in ans:
+            if IP in pkt:
+                src = netaddr.IPAddress(pkt[IP].src)
+                dst = netaddr.IPAddress(pkt[IP].dst)
+            elif ARP in pkt:
+                src = netaddr.IPAddress(pkt[ARP].psrc)
+                dst = netaddr.IPAddress(pkt[ARP].pdst)
+            else:
+                continue
+
+            if any(src in net.cidr for net in networks):
+                discovered_host = DiscoveredHost(ip=str(src), mac=pkt.src)
+            elif pkt.dst != 'ff:ff:ff:ff:ff:ff' and any(dst in net.cidr for net in networks):
+                discovered_host = DiscoveredHost(ip=str(dst), mac=pkt.dst)
+            else:
+                continue
+
+            if discovered_host not in discovered_hosts:
+                discovered_hosts.add(discovered_host)
+
+        return list(discovered_hosts)
 
     def route_to_target(self, target_ip: str):
         ans, unans = traceroute(target_ip, timeout=10)
