@@ -251,7 +251,6 @@ class ScapyTool(NetworkToolFacade):
         self.logger.info("Finding route to target {ip}.".format(ip=target_ip))
 
         if ans:
-            self.logger.info("Route found.")
             # Trace looks like this:
             # {'216.58.219.238':                            <-- Destination ip
             #     {
@@ -271,8 +270,6 @@ class ScapyTool(NetworkToolFacade):
             # for each Packet number : (IP, ICMP not in packet)
             for key in ans.get_trace()[host_key]:
                 hops.append(trace[host_key][key][0])  # Append IP (first value in tuple)
-        else:
-            self.logger.info("No route was found.")
 
         return hops
 
