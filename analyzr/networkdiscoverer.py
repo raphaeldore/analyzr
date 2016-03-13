@@ -188,7 +188,7 @@ class NetworkDiscoverer():
         logger.info("Hops discovery done.")
 
     def pretty_print_ips(self):
-        header_labels = ["IP", "MAC", "Host", "Hops", "Opened Ports", "Closed Ports", "Possible Fingerprints"]
+        header_labels = ["IP", "MAC", "Hostname", "Hops", "Opened Ports", "Closed Ports", "Possible Fingerprints"]
         table = Texttable(max_width=230)
 
         # We only want the header and the horizontal lines
