@@ -283,13 +283,35 @@ class ScapyTool(NetworkToolFacade):
         pass
 
     def tcp_port_scan(self, ip: str, ports_to_scan: List[int]) -> Tuple[List[int], List[int]]:
+
+        def scan_ports_thread():
+            while True:
+                port = ports_queue.get()
+                self.logger.debug("{0:s} : Scanning port {1:d}.".format(threading.current_thread().name, port))
+
+                # Send SYN with random Src Port for each Dst port
+                srcPort = random.randint(1025, 65534)
+                resp = sr1(IP(dst=ip) / TCP(sport=srcPort, dport=port, flags="S"), timeout=1)
+                if resp and resp.haslayer(TCP):
+                    if resp[TCP].flags == (TCPFlag.SYN | TCPFlag.ACK):
+                        # YAY the port is opened
+                        self.logger.debug("{thread_name} : port {port} is opened!"
+                                          .format(thread_name=threading.current_thread().name, port=port))
+                        opened_ports.append(port)
+                        # Send RST to close connection.
+                        send(IP(dst=ip) / TCP(sport=srcPort, dport=port, flags="R"))
+                        # elif ICMP in resp:
+                        #    if int(resp.getlayer(ICMP).type)==3 and int(resp.getlayer(ICMP).code) in [1,2,3,9,10,13]:
+                        #        # Port state unknown... TODO: we should retry
+
+                ports_queue.task_done()
+
         ports_queue = queue.Queue()
         opened_ports = []
 
         for thread_nbr in range(NUM_PING_THREADS):
             t = threading.Thread(
-                target=self._scan_ports_thread,
-                args=(ip, ports_queue, opened_ports,),
+                target=scan_ports_thread,
                 daemon=True,
                 name="Port scan worker #{0:d} ({1:s})".format(thread_nbr, ip)
             )
@@ -307,28 +329,6 @@ class ScapyTool(NetworkToolFacade):
         closed_ports.sort(key=int)
 
         return opened_ports, closed_ports
-
-    def _scan_ports_thread(self, host, ports_queue: queue.Queue, opened_ports: list):
-        while True:
-            port = ports_queue.get()
-            self.logger.debug("{0:s} : Scanning port {1:d}.".format(threading.current_thread().name, port))
-
-            # Send SYN with random Src Port for each Dst port
-            srcPort = random.randint(1025, 65534)
-            resp = sr1(IP(dst=host) / TCP(sport=srcPort, dport=port, flags="S"), timeout=1)
-            if resp and resp.haslayer(TCP):
-                if resp[TCP].flags == (TCPFlag.SYN | TCPFlag.ACK):
-                    # YAY the port is opened
-                    self.logger.debug("{thread_name} : port {port} is opened!"
-                                      .format(thread_name=threading.current_thread().name, port=port))
-                    opened_ports.append(port)
-                    # Send RST to close connection.
-                    send(IP(dst=host) / TCP(sport=srcPort, dport=port, flags="R"))
-                    # elif ICMP in resp:
-                    #    if int(resp.getlayer(ICMP).type)==3 and int(resp.getlayer(ICMP).code) in [1,2,3,9,10,13]:
-                    #        # Port state unknown... TODO: we should retry
-
-            ports_queue.task_done()
 
     def sniff_network(self,
                       nb_pkts_to_sniff: int,
