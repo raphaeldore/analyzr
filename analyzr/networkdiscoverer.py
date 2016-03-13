@@ -4,10 +4,12 @@ analyzr.NetworkScanner
 
 This modules allows to scan the network of the current host..
 """
+import logging
+import os
+from collections import defaultdict
 from typing import List
 
 import netaddr
-from scapy.all import *
 from texttable import Texttable
 
 from analyzr.core import NetworkNode
