@@ -1,3 +1,4 @@
+import os
 import socket
 from os import path
 
@@ -60,6 +61,13 @@ logging.config.dictConfig(logging_config)
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
+from analyzr.config import config
+
+dir = os.path.dirname(__file__)
+config["ettercap_fingerprints_path"] = os.path.join(dir, "resources", "etter.finger.os")
+config["nmap_fingerprints_path"] = os.path.join(dir, "resources", "nmap-os-db")
+config["p0f_fingerprints_path"] = os.path.join(dir, "resources", "p0f.fp")
+
 
 def main():
     """The main routine."""
@@ -83,12 +91,13 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-ftcp",
-                        "--fastTCP",
-                        help="Makes TCPSYNPing only ping on port 80.",
-                        action="store_true",
-                        default=False)
+    # action="store_true"
 
+    parser.add_argument("-dm",
+                        "--discovery-mode",
+                        help="Decide which host discovery strategy to use.",
+                        choices=["passive", "active", "all"],
+                        default=False)
     parser.add_argument("-p",
                         "--ports",
                         nargs="*",
@@ -99,10 +108,15 @@ def main():
                         )
     parser.add_argument("-ll",
                         "--log-level",
-                        help="Sets the logging level for the whole application. Possible values are :"
-                             " debug, info, warning, error and critical.",
+                        help="Sets the logging level for the whole application.",
                         choices=["debug", "info", "warning", "error", "critical"],
-                        default="debug")
+                        default="info")
+    parser.add_argument("-ett",
+                        "--ettercap-fingerprints",
+                        help="Set the path to the ettercap fingerprint database file.",
+                        # type=argparse.FileType('r', encoding='UTF-8'),
+                        default=config["ettercap_fingerprints_path"],
+                        required=False)
 
     args = parser.parse_args()
 
