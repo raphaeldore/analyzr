@@ -1,5 +1,4 @@
 import socket
-
 from os import path
 
 from analyzr.networktool import InvalidInterface
@@ -61,6 +60,7 @@ logging.config.dictConfig(logging_config)
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
+
 def main():
     """The main routine."""
 
@@ -70,13 +70,14 @@ def main():
     # noinspection PyClassHasNoInit
     class PortsAction(argparse.Action):
         def __call__(self, parser, namespace, values, option_string=None):
-            min_value = min(values)
-            max_value = max(values)
+            invalid_values = [value for value in values if
+                              value < constants.MIN_PORT_NUMBER or value > constants.MAX_PORT_NUMBER]
 
-            if min_value < 1:
-                parser.error("{0:d} is not a valid port number. Valid range is 1-65535 (inclusive).".format(min_value))
-            elif max_value > 65535:
-                parser.error("{0:d} is not a valid port number. Valid range is 1-65535 (inclusive).".format(max_value))
+            if invalid_values:
+                invalid_values.sort(key=int)
+                message = "is not a valid port number." if len(invalid_values) == 1 else "are not valid port numbers"
+                parser.error("{ports} {msg}.\nValid range is 1-65535 (inclusive).".format(
+                    ports=", ".join([str(iv) for iv in invalid_values]), msg=message))
 
             setattr(namespace, self.dest, list(set(values)))
 
@@ -112,4 +113,4 @@ def main():
         if e.errno == socket.errno.EPERM:  # Operation not permitted
             print("\033[31m{0:s}\033[0m. Did you run as root?".format(e.strerror))
     except InvalidInterface:
-            print("Provided network interface is invalid.")
+        print("Provided network interface is invalid.")

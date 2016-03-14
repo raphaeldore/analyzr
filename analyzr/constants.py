@@ -17,6 +17,9 @@ topports = {80,  # http
 
 NUM_PING_THREADS = 4
 
+MIN_PORT_NUMBER = 1
+MAX_PORT_NUMBER = 65535
+
 
 class DhcpMessageTypes(IntEnum):
     MESSAGE_TYPE_OFFER = 2
