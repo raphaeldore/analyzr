@@ -2,9 +2,6 @@ import math
 import socket
 import struct
 
-from netaddr import IPNetwork, IPAddress
-from scapy.all import conf
-
 
 def long2netmask(arg):
     if arg <= 0 or arg >= 0xFFFFFFFF:
@@ -30,35 +27,6 @@ def to_CIDR_notation(bytes_network, bytes_netmask) -> str:
         return None
 
     return net
-
-
-def get_local_interfaces_networks() -> (dict, dict):
-    interfaces_networks = dict()
-    networks_ips = dict()
-
-    for network, netmask, gateway, interface, address in conf.route.routes:
-
-        # skip loopback network and default gw
-        if network == 0 or interface == 'lo' or address == '127.0.0.1' or address == '0.0.0.0':
-            continue
-
-        if netmask <= 0 or netmask == 0xFFFFFFFF:
-            continue
-
-        cidr = to_CIDR_notation(network, netmask)
-
-        if not cidr:
-            continue
-
-        ip_network = IPNetwork(cidr)
-
-        if ip_network is None:
-            continue
-
-        interfaces_networks[interface] = ip_network
-        networks_ips[ip_network] = IPAddress(address)
-
-    return interfaces_networks, networks_ips
 
 
 def resolve_ip(ip, timeout: int = 1):
