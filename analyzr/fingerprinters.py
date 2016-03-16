@@ -1,23 +1,26 @@
-from scapy import packet
-from scapy.all import *
-from scapy.layers.inet import IP, TCP
+import logging
+
+import collections
 
 from analyzr.core import AnalyzrModule
 from analyzr.utils.file import open_with_error
-from analyzr.constants import TCPFlag
-from analyzr.constants import IPFlag
 
+
+# TODO: Is passing a packet conversion function very clean..? Seems a bit hackish. My design is not the best.
+# FIXME: This is a temporary solution. Probably best to just implement independent functions in NetworkTool..
+#        because depending on the fingerprinter, we must craft packets in specific ways.
 
 class Fingerprinter(AnalyzrModule):
-    def __init__(self, name: str, os_fingerprint_file_name: str):
+    def __init__(self, name: str, os_fingerprint_file_name: str, pkt_conversion_fn: callable):
         super().__init__(name)
         self.os_fingerprint_file_name = os_fingerprint_file_name
+        self.pkt_conversion_fn = pkt_conversion_fn
         self.logger = logging.getLogger(__name__)
 
     def load_fingerprints(self):
         raise NotImplemented
 
-    def identify_os_from_pkt(self, pkt: packet) -> set:
+    def identify_os_from_pkt(self, pkt) -> set:
         raise NotImplemented
 
 
@@ -58,8 +61,8 @@ class EttercapFingerprinter(Fingerprinter):
                                                   'F',
                                                   'LEN'])
 
-    def __init__(self, os_fingerprint_file_name: str):
-        super().__init__("Ettercap Fingerprinter", os_fingerprint_file_name)
+    def __init__(self, os_fingerprint_file_name: str, pkt_conversion_fn: callable):
+        super().__init__("Ettercap Fingerprinter", os_fingerprint_file_name, pkt_conversion_fn)
         # A fingerprint can match many operating systems. So the key is the fingerprint.
         self.os_fingerprints = collections.OrderedDict()
 
@@ -83,9 +86,10 @@ class EttercapFingerprinter(Fingerprinter):
                 "Loaded {nb_finger} fingerprints from {file_name}.".format(nb_finger=len(self.os_fingerprints),
                                                                            file_name=self.os_fingerprint_file_name))
 
-    def identify_os_from_pkt(self, pkt: packet) -> set:
+    def identify_os_from_pkt(self, pkt) -> set:
         try:
-            ettercap_fingerprint, ettercap_fingerprint_wo_len = self._pkt_to_ettercap_fingerprint(pkt)
+            converted_pkt = self.pkt_conversion_fn(pkt)
+            ettercap_fingerprint, ettercap_fingerprint_wo_len = self._get_ettercap_fingerprint(*converted_pkt)
 
             found_fingerprint = self.os_fingerprints.get(ettercap_fingerprint, None)
 
@@ -96,37 +100,6 @@ class EttercapFingerprinter(Fingerprinter):
             return found_fingerprint if found_fingerprint else {}
         except (TypeError, ValueError):
             return {}
-
-    # TODO: Remove scapy dependency by moving this to ScapyTool
-    def _pkt_to_ettercap_fingerprint(self, pkt: packet) -> (EttercapFingerprint, EttercapFingerprint):
-        # We don't want to modify the original packet
-        pkt = pkt.copy()
-        pkt = pkt.__class__(bytes(pkt))
-
-        while pkt.haslayer(IP) and pkt.haslayer(TCP):
-            pkt = pkt.getlayer(IP)
-            if isinstance(pkt.payload, TCP):
-                break
-            pkt = pkt.payload
-
-        if not isinstance(pkt, IP) or not isinstance(pkt.payload, TCP):
-            raise TypeError("Not a TCP/IP packet")
-
-        tcp_options = dict(pkt[TCP].options)
-
-        return self._get_ettercap_fingerprint(
-            tcp_window_size=pkt[TCP].window,
-            tcp_opt_max_segment_size=tcp_options.get("MSS", None),
-            ip_ttl=pkt[IP].ttl,
-            tcp_opt_window_scale_factor=tcp_options.get("WScale", None),
-            tcp_opt_sack_permitted="SAckOK" in tcp_options,
-            tcp_opt_no_operation="NOP" in tcp_options,
-            ip_flag_dont_fragment=pkt[IP].flags == IPFlag.DF,
-            tcp_opt_timestamp_present="Timestamp" in tcp_options,
-            tcp_flag_syn=TCPFlag.is_flag(TCPFlag.SYN, pkt[TCP].flags),
-            tcp_flag_ack=TCPFlag.is_flag(TCPFlag.ACK, pkt[TCP].flags),
-            ip_pkt_total_len=len(pkt[IP])
-        )
 
     def _get_ettercap_fingerprint(self,
                                   tcp_window_size,  # 4 digit hex
@@ -172,3 +145,28 @@ class EttercapFingerprinter(Fingerprinter):
 
         return (self.EttercapFingerprint(*fingerprint),
                 self.EttercapFingerprint(*fingerprint_wo_len) if fingerprint_wo_len else None)
+
+
+# For testing only...
+# if __name__ == "__main__":
+#     from scapy.all import *
+#     from scapy.layers.inet import IP, TCP
+#     from analyzr.networktool import ScapyTool
+#     from analyzr.constants import topports
+#
+#     ettercap_fingerprinter = EttercapFingerprinter(
+#         os_fingerprint_file_name=os.path.join(os.path.dirname(__file__), "resources", "etter.finger.os"),
+#         pkt_conversion_fn=ScapyTool.pkt_to_ettercap_fn())
+#
+#     ettercap_fingerprinter.load_fingerprints()
+#     srcPort = random.randint(1025, 65534)
+#     ans, unans = sr(IP(dst="172.16.2.1") / TCP(sport=srcPort, dport=list(topports), flags="S"), timeout=1)
+#
+#     results = []
+#     for s, r in ans.res:
+#         result = ettercap_fingerprinter.identify_os_from_pkt(r)
+#         if result:
+#             results.append(result)
+#
+#     # On my host machine prints: [{'Linux'}, {'Linux'}, {'Linux'}]
+#     print(results)
