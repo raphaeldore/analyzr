@@ -201,7 +201,8 @@ class NetworkDiscoverer():
 
             print("Live hosts in network {0:s}".format(str(network)))
 
-            for nn in network_nodes:
+            sorted_network_nodes = sorted(network_nodes, key=lambda nn: nn.ip.value)
+            for nn in sorted_network_nodes:
                 table.add_row([str(nn.ip or "Unknown IP"),
                                str(nn.mac or "Unknown MAC"),
                                nn.host or "Unknown Host",
