@@ -80,21 +80,13 @@ class NetworkDiscoverer():
         return False
 
     # TODO: This is bad and you should feel bad
-    # def identify_fingerprints(self):
-    #     responses = dict()
-    #     for network, network_nodes in self.discovered_network_hosts.items():
-    #         for network_node in network_nodes:
-    #             srcPort = random.randint(1025, 65534)
-    #             resp = sr1(IP(dst=str(network_node.ip)) / TCP(sport=srcPort, dport=topports, flags=ScapyTCPFlag.SYN),
-    #                        timeout=1, verbose=0)
-    #             if resp:
-    #                 responses[network_node] = resp
-    #
-    #     for fingerprinter in self.fingerprinters:  # type: fingerprinter
-    #         for network_node, resp in responses.items():
-    #             os = fingerprinter.identify_os_from_pkt(resp)
-    #             if os:
-    #                 network_node.possible_fingerprints |= os
+    def identify_fingerprints(self):
+        logger.info("Trying to identify found hosts fingerprints...")
+        for network, network_nodes in self.discovered_network_hosts.items():
+            for network_node in network_nodes:  # type: NetworkNode
+                possible_fingerprints = self.network_tool.identify_host_os(str(network_node.ip))
+                if possible_fingerprints:
+                    network_node.possible_fingerprints |= possible_fingerprints
 
     def make_network_graph(self):
         hosts = set()
