@@ -1,10 +1,11 @@
 import abc
 import threading
 from collections import namedtuple
-from typing import List, Tuple, NamedTuple
+from typing import List, Tuple, NamedTuple, Set
 
 from analyzr import constants
-from analyzr.constants import NUM_PING_THREADS, TCPFlag
+from analyzr.constants import NUM_PING_THREADS, TCPFlag, IPFlag, topports
+from analyzr.fingerprinters import Fingerprinter
 
 DiscoveredHost = namedtuple("DiscoveredHost", ["ip", "mac"])
 PingedHost = namedtuple("PingedHost", ["ip", "ttl"])
@@ -15,13 +16,15 @@ HostInfo = NamedTuple("HostInfo", [("ip", str), ("ip_network", str), ("gateway_i
 class NetworkToolFacade(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, interface_to_use: str = None):
+    def __init__(self, fingerprinters: List[Fingerprinter], interface_to_use: str = None):
         """
         Inits the object. Raises InvalidInterface exception if given interface is invalid (maps to no interface
         on the host).
 
+        :param fingerprinters: List of fingerprinters to use to identify packet.
         :param interface_to_use: the network interface used by the tool
         """
+        self.fingerprinters = fingerprinters
         self.interface_to_use = interface_to_use
 
     @property
@@ -76,11 +79,11 @@ class NetworkToolFacade(object):
         pass
 
     @abc.abstractmethod
-    def identify_host_os(self, ip: str) -> str:
+    def identify_host_os(self, ip: str) -> Set[str]:
         """
         Tries to identify the operating system of the host at the given IP.
 
-        Returns None if nothing found.
+        Returns None if nothing found. Else return a set of possible matches.
 
         :param ip: The host to probe
         """
@@ -98,6 +101,14 @@ class NetworkToolFacade(object):
         :param ports_to_scan: The ports to scan on the host.
 
         :returns tuple opened_ports, closed_ports.
+        """
+        pass
+
+    @staticmethod
+    @abc.abstractmethod
+    def pkt_to_ettercap_fn() -> callable:
+        """
+        Returns a function that converts a pkt for processing by a fingerprinter.
         """
         pass
 
@@ -129,7 +140,7 @@ class ScapyTool(NetworkToolFacade):
 
     scapy_tcp_flags = {"SYN": "S", "ACK": "A", "RST": "R"}
 
-    def __init__(self, interface_to_use: str = None):
+    def __init__(self, fingerprinters: List[Fingerprinter], interface_to_use: str = None):
         from scapy.all import conf
         # Make scapy shut up while sending packets
         conf.verb = 0
@@ -137,7 +148,7 @@ class ScapyTool(NetworkToolFacade):
         if not interface_to_use:
             interface_to_use = conf.iface
 
-        super().__init__(interface_to_use)
+        super().__init__(fingerprinters, interface_to_use)
 
         self.logger = logging.getLogger(__name__)
 
@@ -281,8 +292,56 @@ class ScapyTool(NetworkToolFacade):
 
         return PingedHost(ip=ip, ttl=res[IP].ttl) if res else None
 
-    def identify_host_os(self, ip: str) -> str:
-        pass
+    def identify_host_os(self, ip: str) -> Set[str]:
+        # Send some traffic to some ports and analyze how they respond. Probably not the best way to do this.
+        srcPort = random.randint(1025, 65534)
+        ans, unans = sr(IP(dst=ip) / TCP(sport=srcPort, dport=list(topports), flags="S"), timeout=1)
+
+        possible_fingerprints = set()
+        for fingerprinter in self.fingerprinters:
+            for s, r in ans.res:
+                fingerprints = fingerprinter.identify_os_from_pkt(r)
+                if fingerprints:
+                    self.logger.debug(
+                        "{host} possible fingerprint(s) found: {finger}!".format(host=ip, finger=", ".join(
+                            str(f) for f in fingerprints)))
+                    possible_fingerprints |= fingerprints
+
+        return possible_fingerprints
+
+    @staticmethod
+    def pkt_to_ettercap_fn() -> callable:
+        def _scapy_pkt_to_ettercap_fingerprint(pkt):
+            # We don't want to modify the original packet
+            pkt = pkt.copy()
+            pkt = pkt.__class__(bytes(pkt))
+
+            while pkt.haslayer(IP) and pkt.haslayer(TCP):
+                pkt = pkt.getlayer(IP)
+                if isinstance(pkt.payload, TCP):
+                    break
+                pkt = pkt.payload
+
+            if not isinstance(pkt, IP) or not isinstance(pkt.payload, TCP):
+                raise TypeError("Not a TCP/IP packet")
+
+            tcp_options = dict(pkt[TCP].options)
+
+            # @formatter:off
+            return (pkt[TCP].window,                                # tcp window size
+                    tcp_options.get("MSS", None),                   # tcp option maximum segment size
+                    pkt[IP].ttl,                                    # ip time to live
+                    tcp_options.get("WScale", None),                # tcp option window scale factor
+                    "SAckOK" in tcp_options,                        # tcp option sack permitted
+                    "NOP" in tcp_options,                           # tcp option no operation
+                    pkt[IP].flags == IPFlag.DF,                     # ip flag don't fragment
+                    "Timestamp" in tcp_options,                     # tcp option_timestamp present
+                    TCPFlag.is_flag(TCPFlag.SYN, pkt[TCP].flags),   # tcp flag syn
+                    TCPFlag.is_flag(TCPFlag.ACK, pkt[TCP].flags),   # tcp flag ack
+                    len(pkt[IP]))                                   # ip packet total length
+            # @formatter:on
+
+        return _scapy_pkt_to_ettercap_fingerprint
 
     def tcp_port_scan(self, ip: str, ports_to_scan: List[int]) -> Tuple[List[int], List[int]]:
 
