@@ -89,7 +89,34 @@ def main():
 
             setattr(namespace, self.dest, list(set(values)))
 
-    parser = argparse.ArgumentParser()
+    class IPNetworksAction(argparse.Action):
+        def __init__(self, option_strings, dest, nargs=None, **kwargs):
+            super(IPNetworksAction, self).__init__(option_strings, dest, nargs, **kwargs)
+
+        def __call__(self, parser, namespace, values, option_string=None):
+            from netaddr import IPNetwork, AddrFormatError
+
+            errors = []
+
+            for net in values:
+                if "/" not in net:
+                    errors.append("{0:s} is not valid ip network. Missing subnet mask.".format(net))
+
+                try:
+                    network = IPNetwork(net)
+                    if not network.is_private():
+                        errors.append("{0:s} is not valid private ip network. This tool only scans the private IPV4 space.".format(net))
+                except AddrFormatError:
+                    errors.append("{0:s} is not valid ip network.".format(net))
+
+            if errors:
+                parser.error("\n".join(errors))
+
+            setattr(namespace, self.dest, values)
+
+    parser = argparse.ArgumentParser(description="Discover hosts on (or close to) your network!",
+                                     epilog="Usage example: -p 22 23 80 443 -ll debug -ett "
+                                            "C:\\fingerprints\\etter.finger.os")
 
     # action="store_true"
 
@@ -116,6 +143,12 @@ def main():
                         help="Set the path to the ettercap fingerprint database file.",
                         # type=argparse.FileType('r', encoding='UTF-8'),
                         default=config["ettercap_fingerprints_path"],
+                        required=False)
+    parser.add_argument("-n",
+                        "--networks",
+                        help="IP networks to scan in CIDR format. If ommited, scans the whole private IPV4 address space.",
+                        nargs="*",
+                        action=IPNetworksAction,
                         required=False)
 
     args = parser.parse_args()
