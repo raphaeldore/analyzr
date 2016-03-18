@@ -75,19 +75,36 @@ def main():
     from analyzr import constants
     import argparse
 
-    # noinspection PyClassHasNoInit
     class PortsAction(argparse.Action):
+        import re
+        valid_port_range = range(constants.MIN_PORT_NUMBER, constants.MAX_PORT_NUMBER + 1)
+        range_re = re.compile("\d+:\d+")
+
+        def __init__(self, option_strings, dest, nargs=None, **kwargs):
+            super(PortsAction, self).__init__(option_strings, dest, nargs, **kwargs)
+
         def __call__(self, parser, namespace, values, option_string=None):
-            invalid_values = [value for value in values if
-                              value < constants.MIN_PORT_NUMBER or value > constants.MAX_PORT_NUMBER]
+            ports = set()
+            invalid_ports = []
 
-            if invalid_values:
-                invalid_values.sort(key=int)
-                message = "is not a valid port number." if len(invalid_values) == 1 else "are not valid port numbers"
+            for port in values:
+                try:
+                    if self.range_re.match(port):
+                        range_start, range_end = (int(i) for i in port.split(":"))
+                        ports.update(range(range_start, range_end + 1))
+                    else:
+                        ports.add(int(port))
+                except ValueError:
+                    invalid_ports.append(port)
+
+            [invalid_ports.append(port) for port in ports if port not in self.valid_port_range]
+
+            if invalid_ports:
+                message = "is not a valid port number" if len(invalid_ports) == 1 else "are not valid port numbers"
                 parser.error("{ports} {msg}.\nValid range is 1-65535 (inclusive).".format(
-                    ports=", ".join([str(iv) for iv in invalid_values]), msg=message))
+                    ports=", ".join([str(ip) for ip in invalid_ports]), msg=message))
 
-            setattr(namespace, self.dest, list(set(values)))
+            setattr(namespace, self.dest, list(ports))
 
     class IPNetworksAction(argparse.Action):
         def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -127,10 +144,11 @@ def main():
                         default=False)
     parser.add_argument("-p",
                         "--ports",
-                        nargs="*",
-                        help="Ports to scan on hosts (1-65534).",
+                        help="Ports to scan on hosts (1-65534). Valid inputs include: 80 (single port), 22 23 80 443 "
+                             "(multiple ports) and 1:100 (ports 1 to 100). You can also mix and match (Ex: 22:40 80 443)."
+                             " Duplicate ports are ignored.",
                         action=PortsAction,
-                        type=int,
+                        nargs='+',
                         default=constants.topports
                         )
     parser.add_argument("-ll",
