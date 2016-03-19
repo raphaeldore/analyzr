@@ -6,7 +6,7 @@ from enum import IntEnum
 # presentation by Fyodor
 
 # @formatter:off
-topports = {80,     # http
+topports = [80,     # http
             23,     # telnet
             22,     # ssh
             443,    # https
@@ -15,7 +15,7 @@ topports = {80,     # http
             139,    # netbios-ssn
             21,     # ftp
             135,    # msrpc
-            25}     # smtp
+            25]     # smtp
 
 NUM_PING_THREADS = 4
 
