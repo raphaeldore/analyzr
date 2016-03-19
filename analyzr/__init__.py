@@ -171,6 +171,9 @@ def main():
 
     args = parser.parse_args()
 
+    logger = logging.getLogger("analyzr")
+    logger.setLevel(args.log_level.upper())
+
     try:
         from analyzr import runner
         runner.run(args)
@@ -178,4 +181,6 @@ def main():
         if e.errno == socket.errno.EPERM:  # Operation not permitted
             print("\033[31m{0:s}\033[0m. Did you run as root?".format(e.strerror))
     except InvalidInterface:
-        print("Provided network interface is invalid.")
+        logger.error("Provided network interface is invalid.")
+    except Exception as e:
+        logger.exception(e)
