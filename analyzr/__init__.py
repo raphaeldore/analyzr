@@ -2,7 +2,7 @@ import os
 import socket
 from os import path
 
-from analyzr.networktool import InvalidInterface
+from analyzr.core import InvalidInterface
 
 graphs_dir = path.join(path.dirname(__file__), "..", 'graphs')
 

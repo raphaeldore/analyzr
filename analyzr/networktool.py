@@ -3,7 +3,7 @@ import threading
 from collections import namedtuple
 from typing import List, Tuple, NamedTuple, Set
 
-from analyzr import constants
+from analyzr import constants, InvalidInterface
 from analyzr.constants import NUM_PING_THREADS, TCPFlag, IPFlag, topports
 from analyzr.fingerprinters import Fingerprinter
 
@@ -127,10 +127,6 @@ from scapy.all import *
 from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import IP, ICMP, TCP, traceroute
 from scapy.layers.inet import UDP
-
-
-class InvalidInterface(Exception):
-    pass
 
 
 class ScapyTool(NetworkToolFacade):

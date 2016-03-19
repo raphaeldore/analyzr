@@ -45,3 +45,7 @@ class AnalyzrModule(object):
         self.name = name
         self.logger = logging.getLogger(__name__)
         self.config = {}
+
+
+class InvalidInterface(Exception):
+    pass
