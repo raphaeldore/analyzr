@@ -149,7 +149,7 @@ def main():
                              " Duplicate ports are ignored.",
                         action=PortsAction,
                         nargs='+',
-                        default=constants.topports
+                        default=None
                         )
     parser.add_argument("-ll",
                         "--log-level",

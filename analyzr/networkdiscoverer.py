@@ -7,11 +7,11 @@ This modules allows to scan the network of the current host..
 import logging
 import os
 from collections import defaultdict
-from typing import List
 
 import netaddr
 from texttable import Texttable
 
+from analyzr import constants
 from analyzr.core import NetworkNode
 from analyzr.networktool import NetworkToolFacade
 
@@ -19,22 +19,57 @@ logger = logging.getLogger(__name__)
 
 
 class NetworkDiscoverer():
-    # Adapted from netdiscover main.c
-    # https://sourceforge.net/p/netdiscover/code/115/tree/trunk/src/main.c
-    # And improved by using netaddr.
-    common_networks = [
+    private_ipv4_space = [
         netaddr.IPNetwork("192.168.0.0/16"),
         netaddr.IPNetwork("172.16.0.0/12"),
         netaddr.IPNetwork("10.0.0.0/8")]
 
-    # "10.0.0.0/8"
+    def __init__(self, network_tool: NetworkToolFacade, config: dict):
+        """
 
-    def __init__(self, network_tool: NetworkToolFacade, fingerprinters: list):
+        :param network_tool: An instance of the NetworkToolFacade class. This will be used to execute the different
+         discovery steps.
+
+        :param config: A dictionary of configurations. Dictionary accepts these configs:
+
+            :param config["networks"]: a List[str] of networks in CIDR notation. This is the networks we will try to find hosts on.
+                Ex: ["192.168.1.0/24", "10.0.0.0/8"].
+
+            :param config["ports"]: a List[int] of ports to scan.
+                Ex: [22, 23, 80, 443]
+
+            :param config["discovery_mode"]: "active", "passive" or "both". Determine the discovery method. Active sends arp,
+            TCP, whatever requests. It is not subtle at all. Passive listens to network traffic and attemps to find hosts
+            in the network. Both does both.
+
+
+        """
         self.network_tool = network_tool
-        self.discovered_network_hosts = defaultdict(
-            set)  # (network --> set(NetworkNode, NetworkNode, NetworkNode, ...))
 
-    def discover(self, network_ranges: List[str] = None):
+        if "ports" in config and config["ports"]:
+            self.ports_to_scan = config["ports"]
+        else:
+            logger.info("No ports to scan given. Will scan default popular ports ({ports})."
+                        .format(ports=", ".join(map(str, constants.topports))))
+            self.ports_to_scan = constants.topports
+
+        if "networks" in config and config["networks"]:
+            self.networks_to_scan = [netaddr.IPNetwork(net_to_scan) for net_to_scan in config["networks"]]
+        else:
+            logger.info("No networks to scan given. Will scan all private IPV4 space ({ipv4space})."
+                        .format(ipv4space=', '.join(map(str, self.private_ipv4_space))))
+            self.networks_to_scan = self.private_ipv4_space
+
+        if "discovery_mode" in config and config["discovery_mode"]:
+            self.discovery_mode = config["discovery_mode"]
+        else:
+            logger.info("No discovery mode given. Assuming active and passive discovery modes.")
+            self.discovery_mode = "both"
+
+        # {netaddr.IPNetwork : {NetworkNode, NetworkNode, NetworkNode, ...}, netaddr.IPNetwork: {...}}
+        self.discovered_network_hosts = defaultdict(set)
+
+    def discover(self):
         """
         Scans specified network ranges to find live hosts. If no networks given, a default list is used.
 
@@ -57,12 +92,7 @@ class NetworkDiscoverer():
 
         logger.info("Starting host discovery...")
 
-        if network_ranges:
-            networks_to_scan = [netaddr.IPNetwork(net_to_scan) for net_to_scan in network_ranges]
-        else:
-            networks_to_scan = self.common_networks
-
-        for net in networks_to_scan:
+        for net in self.networks_to_scan:
             if net.prefixlen >= 16:
                 _discover(net)
             else:
@@ -215,12 +245,12 @@ class NetworkDiscoverer():
             print(table.draw())
             table.reset()
 
-    def scan_found_network_nodes_for_opened_ports(self, ports_to_scan: List[int]):
+    def scan_found_network_nodes_for_opened_ports(self):
         logger.info("Checking founds hosts for opened ports...")
-        logger.info("Scanning ports %s.", str(ports_to_scan).strip("[]"))
+        logger.info("Scanning ports %s.", str(self.ports_to_scan).strip("[]"))
         for network, network_nodes in self.discovered_network_hosts.items():
             for network_node in network_nodes:  # type: NetworkNode
-                opened_ports, closed_ports = self.network_tool.tcp_port_scan(str(network_node.ip), ports_to_scan)
+                opened_ports, closed_ports = self.network_tool.tcp_port_scan(str(network_node.ip), self.ports_to_scan)
 
                 logger.debug("{0:s} has these ports opened: {1:s}".format(str(network_node.ip),
                                                                           str(opened_ports).strip("[]")))
