@@ -34,14 +34,14 @@ class NetworkDiscoverer():
         :param config: A dictionary of configurations. Dictionary accepts these configs:
 
             :param config["networks"]: a List[str] of networks in CIDR notation. This is the networks we will try to find hosts on.
-                Ex: ["192.168.1.0/24", "10.0.0.0/8"].
+                ``Ex: ["192.168.1.0/24", "10.0.0.0/8"].``
 
             :param config["ports"]: a List[int] of ports to scan.
-                Ex: [22, 23, 80, 443]
+                ``Ex: [22, 23, 80, 443]``
 
-            :param config["discovery_mode"]: "active", "passive" or "both". Determine the discovery method. Active sends arp,
+            :param config["discovery_mode"]: "active", "passive" or "all". Determine the discovery method. Active sends arp,
             TCP, whatever requests. It is not subtle at all. Passive listens to network traffic and attemps to find hosts
-            in the network. Both does both.
+            in the network. All does both.
 
 
         """
