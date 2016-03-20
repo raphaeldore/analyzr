@@ -140,16 +140,14 @@ def main():
     parser.add_argument("-dm",
                         "--discovery-mode",
                         help="Decide which host discovery strategy to use.",
-                        choices=["passive", "active", "all"],
-                        default=False)
+                        choices=["passive", "active", "all"])
     parser.add_argument("-p",
                         "--ports",
                         help="Ports to scan on hosts (1-65534). Valid inputs include: 80 (single port), 22 23 80 443 "
                              "(multiple ports) and 1:100 (ports 1 to 100). You can also mix and match (Ex: 22:40 80 443)."
                              " Duplicate ports are ignored.",
                         action=PortsAction,
-                        nargs='+',
-                        default=None
+                        nargs='+'
                         )
     parser.add_argument("-ll",
                         "--log-level",
@@ -168,6 +166,10 @@ def main():
                         nargs="*",
                         action=IPNetworksAction,
                         required=False)
+    parser.add_argument("-i",
+                        "--interface",
+                        help="The network interface to use to listen to or send packets with",
+                        required=False)
 
     args = parser.parse_args()
 
@@ -181,6 +183,6 @@ def main():
         if e.errno == socket.errno.EPERM:  # Operation not permitted
             print("\033[31m{0:s}\033[0m. Did you run as root?".format(e.strerror))
     except InvalidInterface:
-        logger.error("Provided network interface is invalid.")
+        logger.error("Provided network interface '{interface}' is invalid.".format(interface=args.interface))
     except Exception as e:
         logger.exception(e)
