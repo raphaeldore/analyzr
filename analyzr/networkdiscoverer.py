@@ -14,6 +14,7 @@ from texttable import Texttable
 from analyzr import constants
 from analyzr.core import NetworkNode
 from analyzr.networktool import NetworkToolFacade
+from analyzr.utils.file import make_sure_path_exists
 
 logger = logging.getLogger(__name__)
 
@@ -196,9 +197,13 @@ class NetworkDiscoverer():
             #                              base_filename="network_graph.png")
 
             filename = "network_graph_" + datetime.datetime.now().strftime("%Y_%m_%d__%H%M%S") + ".png"
-            fullpath = os.path.abspath(os.path.join("..", "graphs", filename))
-            plt.savefig(fullpath)
-            logger.info("Created network graph ({0:s})".format(fullpath))
+
+            graphs_folder_path = os.path.abspath(os.path.join("..", "graphs"))
+            make_sure_path_exists(graphs_folder_path)
+
+            graph_save_path = os.path.join(graphs_folder_path, filename)
+            plt.savefig(graph_save_path)
+            logger.info("Created network graph ({0:s})".format(graph_save_path))
 
     def find_hops(self):
         logger.info("Attempting to find hops needed to reach discovered hosts...")

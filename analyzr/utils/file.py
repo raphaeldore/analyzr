@@ -1,3 +1,6 @@
+import errno
+import os
+import sys
 from contextlib import contextmanager
 
 
@@ -35,8 +38,6 @@ def get_next_file_path(folder: str, base_filename: str):
     :return: The next available filename (Ex: image_2.png).
 
     """
-    import os
-
     pattern = "{filename}_{nb}{ext}"
 
     if not folder.endswith(os.path.sep):
@@ -64,3 +65,18 @@ def get_next_file_path(folder: str, base_filename: str):
             max_nbr = pivot
 
     return os.path.join(folder, pattern.format(filename=filename, nb=str(max_nbr), ext=file_extension))
+
+
+def make_sure_path_exists(path: str) -> None:
+    """
+    Makes sure that the path exists. If it does not exist
+    creates the path (all directories and sub-directories in the given path).
+    """
+    if sys.version_info[:3] >= (3, 4, 1):
+        os.makedirs(path, exist_ok=True)
+    else:
+        try:
+            os.makedirs(path)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
