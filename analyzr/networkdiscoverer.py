@@ -49,21 +49,21 @@ class NetworkDiscoverer():
         if "ports" in config and config["ports"]:
             self.ports_to_scan = config["ports"]
         else:
-            logger.info("No ports to scan given. Will scan default popular ports ({ports})."
-                        .format(ports=", ".join(map(str, constants.topports))))
+            logger.warning("No ports to scan given. Will scan default popular ports ({ports})."
+                           .format(ports=", ".join(map(str, constants.topports))))
             self.ports_to_scan = constants.topports
 
         if "networks" in config and config["networks"]:
             self.networks_to_scan = [netaddr.IPNetwork(net_to_scan) for net_to_scan in config["networks"]]
         else:
-            logger.info("No networks to scan given. Will scan all private IPV4 space ({ipv4space})."
-                        .format(ipv4space=', '.join(map(str, self.private_ipv4_space))))
+            logger.warning("No networks to scan given. Will scan all private IPV4 space ({ipv4space})."
+                           .format(ipv4space=', '.join(map(str, self.private_ipv4_space))))
             self.networks_to_scan = self.private_ipv4_space
 
         if "discovery_mode" in config and config["discovery_mode"]:
             self.discovery_mode = config["discovery_mode"]
         else:
-            logger.info("No discovery mode given. Assuming active and passive discovery modes.")
+            logger.warning("No discovery mode given. Assuming active and passive discovery modes.")
             self.discovery_mode = "all"
 
         # {netaddr.IPNetwork : {NetworkNode, NetworkNode, NetworkNode, ...}, netaddr.IPNetwork: {...}}
