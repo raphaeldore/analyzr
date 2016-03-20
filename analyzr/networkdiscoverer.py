@@ -64,7 +64,7 @@ class NetworkDiscoverer():
             self.discovery_mode = config["discovery_mode"]
         else:
             logger.info("No discovery mode given. Assuming active and passive discovery modes.")
-            self.discovery_mode = "both"
+            self.discovery_mode = "all"
 
         # {netaddr.IPNetwork : {NetworkNode, NetworkNode, NetworkNode, ...}, netaddr.IPNetwork: {...}}
         self.discovered_network_hosts = defaultdict(set)
