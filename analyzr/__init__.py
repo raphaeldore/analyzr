@@ -1,6 +1,7 @@
 import os
 import socket
 from os import path
+from typing import List
 
 from analyzr.core import InvalidInterface
 
@@ -69,6 +70,67 @@ config["nmap_fingerprints_path"] = os.path.join(dir, "resources", "nmap-os-db")
 config["p0f_fingerprints_path"] = os.path.join(dir, "resources", "p0f.fp")
 
 
+def parse_ports(values : List[str]) -> (list, list):
+    """
+    Function used to parse data received from the user. Valid formats include ranges of ports,
+    for example, to scan the ports 1 to 80, you would use 1:80. If one want to scan multiple ports, separate each
+    port by a space.
+
+    :param values: Data received by user.
+    :return: A tuple (ports, invalid_ports).
+    """
+    import re
+    from analyzr import constants
+
+    valid_port_range = range(constants.MIN_PORT_NUMBER, constants.MAX_PORT_NUMBER + 1)
+    range_re = re.compile("\d+:\d+")
+
+    ports = set()
+    invalid_ports = []
+
+    for port in values:
+        try:
+            if range_re.match(port):
+                range_start, range_end = (int(i) for i in port.split(":"))
+                ports.update(range(range_start, range_end + 1))
+            else:
+                ports.add(int(port))
+        except ValueError:
+            invalid_ports.append(port)
+
+    [invalid_ports.append(port) for port in ports if port not in valid_port_range]
+
+    return list(ports), invalid_ports
+
+
+def parse_networks(values: List[str]) -> (list, list):
+    """
+    Function used to parse data received by the user concerning the networks he wants to scan.
+    The networks must be in CIDR format, for example: 192.168.1.0/24. Also, the network must be
+    a private IPV4 address.
+
+    :param values: List of networks in CIDR format.
+    :return: list of errors, or empty list if no errors.
+    """
+    from netaddr import IPNetwork, AddrFormatError
+
+    errors = []
+    for net in values:
+        try:
+            network = IPNetwork(net)
+            if "/" not in net: # we test this here because we are certain that the entered ip address is valid, but missing subnet mask.
+                errors.append("{network} is not valid ip network. Missing subnet mask. For example {network}/24."
+                              .format(network=net))
+            elif not network.is_private():
+                errors.append(
+                    "{0:s} is not valid private ip network. This tool only scans the private IPV4 space.".format(net))
+
+        except AddrFormatError:
+            errors.append("{0:s} is not valid ip network.".format(net))
+
+    return errors
+
+
 def main():
     """The main routine."""
 
@@ -84,52 +146,26 @@ def main():
             super(PortsAction, self).__init__(option_strings, dest, nargs, **kwargs)
 
         def __call__(self, parser, namespace, values, option_string=None):
-            ports = set()
-            invalid_ports = []
-
-            for port in values:
-                try:
-                    if self.range_re.match(port):
-                        range_start, range_end = (int(i) for i in port.split(":"))
-                        ports.update(range(range_start, range_end + 1))
-                    else:
-                        ports.add(int(port))
-                except ValueError:
-                    invalid_ports.append(port)
-
-            [invalid_ports.append(port) for port in ports if port not in self.valid_port_range]
+            valid_ports, invalid_ports = parse_ports(values)
 
             if invalid_ports:
                 message = "is not a valid port number" if len(invalid_ports) == 1 else "are not valid port numbers"
                 parser.error("{ports} {msg}.\nValid range is 1-65535 (inclusive).".format(
                     ports=", ".join([str(ip) for ip in invalid_ports]), msg=message))
 
-            setattr(namespace, self.dest, list(ports))
+            setattr(namespace, self.dest, valid_ports)
 
     class IPNetworksAction(argparse.Action):
         def __init__(self, option_strings, dest, nargs=None, **kwargs):
             super(IPNetworksAction, self).__init__(option_strings, dest, nargs, **kwargs)
 
         def __call__(self, parser, namespace, values, option_string=None):
-            from netaddr import IPNetwork, AddrFormatError
-
-            errors = []
-
-            for net in values:
-                if "/" not in net:
-                    errors.append("{0:s} is not valid ip network. Missing subnet mask.".format(net))
-
-                try:
-                    network = IPNetwork(net)
-                    if not network.is_private():
-                        errors.append("{0:s} is not valid private ip network. This tool only scans the private IPV4 space.".format(net))
-                except AddrFormatError:
-                    errors.append("{0:s} is not valid ip network.".format(net))
+            errors = parse_networks(values)
 
             if errors:
                 parser.error("\n".join(errors))
 
-            setattr(namespace, self.dest, values)
+            setattr(namespace, self.dest, list(set(values)))
 
     parser = argparse.ArgumentParser(description="Discover hosts on (or close to) your network!",
                                      epilog="Usage example: -p 22 23 80 443 -ll debug -ett "
@@ -163,7 +199,7 @@ def main():
     parser.add_argument("-n",
                         "--networks",
                         help="IP networks to scan in CIDR format. If ommited, scans the whole private IPV4 address space.",
-                        nargs="*",
+                        nargs="+",
                         action=IPNetworksAction,
                         required=False)
     parser.add_argument("-i",
