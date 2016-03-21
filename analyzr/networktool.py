@@ -23,7 +23,8 @@ class NetworkToolFacade(object):
         on the host).
 
         :param fingerprinters: List of fingerprinters to use to identify packet.
-        :param interface_to_use: the network interface used by the tool
+        :param interface_to_use: the network interface used by the tool. if "auto" or None, then it is automagically
+        selected (which one is chosen depends on the NetworkTool, but best bet is on the primary network interface).
         """
         self.fingerprinters = fingerprinters
         self.interface_to_use = interface_to_use
@@ -151,7 +152,7 @@ class ScapyTool(NetworkToolFacade):
         # Make scapy shut up while sending packets
         conf.verb = 0
 
-        if not interface_to_use:
+        if not interface_to_use or interface_to_use == "auto":
             interface_to_use = conf.iface
 
         super().__init__(fingerprinters, interface_to_use)
