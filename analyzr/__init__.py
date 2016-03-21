@@ -15,9 +15,6 @@ __license__ = 'MIT'
 __copyright__ = 'Copyright 2016 Raphaël Doré & Raphaël Fournier'
 
 __all__ = [
-    'core',
-    'graphics',
-    'topology',
     'utils'
 ]
 
