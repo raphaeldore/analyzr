@@ -1,51 +1,17 @@
-import importlib
 import logging
-import os
 
-LOG_LEVELS = {'debug': logging.DEBUG,
-              'info': logging.INFO,
-              'warning': logging.WARNING,
-              'error': logging.ERROR,
-              'critical': logging.CRITICAL,
-              }
+logger = logging.getLogger(__name__)
 
-
-def classes_in_module(module: object):
-    md = module.__dict__
-    return [
-        md[c] for c in md if (
-            isinstance(md[c], type) and md[c].__module__ == module.__name__
-        )
-        ]
+# FIXME: Not convinced that this class should exist. But not sure what to replace it with...
 
 
 def run(args):
-    # init scapy
-    importlib.import_module("scapy.all")
-
-    from analyzr import config
-    from analyzr.fingerprints import EttercapFingerprinter
+    from analyzr.fingerprinters import EttercapFingerprinter
     from analyzr.networkdiscoverer import NetworkDiscoverer
-    from analyzr.networkdiscovery import active, passive
-    from analyzr.utils.network import get_local_interfaces_networks
-    from scapy.all import conf
+    from analyzr.networktool import ScapyTool
 
-    # Make scapy shut up
-    conf.verb = 0
-
-    # set graphviz path
-    # conf.prog.dot =  os.path.abspath(os.path.join("bin", "graphviz", "bin", "dot.exe"))
-
-    logger = logging.getLogger("analyzr")
-    logger.setLevel(LOG_LEVELS.get(args.log_level))
-
-    config.interfaces_networks, config.networks_ips = get_local_interfaces_networks()
-
-    scanners = list()
     fingerprinters = list()
-
-    dir = os.path.dirname(__file__)
-    fingerprinters.append(EttercapFingerprinter(os.path.join(dir, "resources", "etter.finger.os")))
+    fingerprinters.append(EttercapFingerprinter(args.ettercap_fingerprints, ScapyTool.pkt_to_ettercap_fn()))
 
     for fingerprinter in fingerprinters:
         try:
@@ -55,13 +21,15 @@ def run(args):
                 "{fingerprinter} : Unable to load {fingerprints}".format(fingerprinter=fingerprinter.name,
                                                                          fingerprints=fingerprinter.os_fingerprint_file_name))
 
-    if config.activescan:
-        for cls in classes_in_module(active):
-            scanners.append(cls())
-    if config.passivescan:
-        for cls in classes_in_module(passive):
-            scanners.append(cls())
+    conf = {"networks": args.networks, "ports": args.ports, "discovery_mode": args.discovery_mode}
+    scapytool = ScapyTool(interface_to_use=args.interface, fingerprinters=fingerprinters)
+    networkscanner = NetworkDiscoverer(network_tool=scapytool, config=conf)
 
-    networkscanner = NetworkDiscoverer(scanners, fingerprinters)
-
-    networkscanner.discover()
+    if networkscanner.discover():
+        networkscanner.scan_found_network_nodes_for_opened_ports()
+        networkscanner.find_hops()
+        networkscanner.make_network_graph()
+        networkscanner.identify_fingerprints()
+        networkscanner.pretty_print_ips()
+    else:
+        print("Discovery found no hosts for specified networks ({nets}) :(.".format(nets=", ".join(args.networks)))
