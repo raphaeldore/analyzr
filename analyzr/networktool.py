@@ -1,4 +1,5 @@
 import abc
+import os
 import threading
 from collections import namedtuple
 from typing import List, Tuple, NamedTuple, Set
@@ -123,7 +124,16 @@ class NetworkToolFacade(object):
         pass
 
 
-from scapy.all import *
+with open(os.devnull, 'w') as f:
+    try:
+        from contextlib import redirect_stderr
+    except ImportError:
+        from analyzr.utils.context import redirect_stderr
+    with redirect_stderr(f):
+        # stderr redirected to os.devnull. No annoying import messages
+        # printed on module import
+        from scapy.all import *
+
 from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import IP, ICMP, TCP, traceroute
 from scapy.layers.inet import UDP
