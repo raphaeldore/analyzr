@@ -5,8 +5,6 @@ from typing import NamedTuple, List, Set, Tuple
 
 import netaddr
 
-from analyzr.fingerprinters import Fingerprinter
-
 
 class NetworkNode(object):
     """
@@ -64,12 +62,12 @@ HostInfo = NamedTuple("HostInfo", [("ip", str), ("ip_network", str), ("gateway_i
 class NetworkToolFacade(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, fingerprinters: List[Fingerprinter], interface_to_use: str = None):
+    def __init__(self, fingerprinters: list, interface_to_use: str = None):
         """
         Inits the object. Raises InvalidInterface exception if given interface is invalid (maps to no interface
         on the host).
 
-        :param fingerprinters: List of fingerprinters to use to identify packet.
+        :param fingerprinters: List of fingerprinters (See Fingerprinter) to use to identify packet.
         :param interface_to_use: the network interface used by the tool. if "auto" or None, then it is automagically
         selected (which one is chosen depends on the NetworkTool, but best bet is on the primary network interface).
         """
@@ -170,3 +168,17 @@ class NetworkToolFacade(object):
                       pkt_filter_fn: callable = None,
                       stop_filter_fn: callable = None) -> list:
         pass
+
+
+class Fingerprinter(AnalyzrModule):
+    def __init__(self, name: str, os_fingerprint_file_name: str, pkt_conversion_fn: callable):
+        super().__init__(name)
+        self.os_fingerprint_file_name = os_fingerprint_file_name
+        self.pkt_conversion_fn = pkt_conversion_fn
+        self.logger = logging.getLogger(__name__)
+
+    def load_fingerprints(self):
+        raise NotImplemented
+
+    def identify_os_from_pkt(self, pkt) -> set:
+        raise NotImplemented

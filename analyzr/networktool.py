@@ -4,8 +4,7 @@ from typing import List, Tuple, Set
 
 from analyzr import constants, InvalidInterface
 from analyzr.constants import NUM_PING_THREADS, TCPFlag, IPFlag, topports
-from analyzr.core import DiscoveredHost, PingedHost, HostInfo, NetworkToolFacade
-from analyzr.fingerprinters import Fingerprinter
+from analyzr.core import DiscoveredHost, PingedHost, HostInfo, NetworkToolFacade, Fingerprinter
 
 with open(os.devnull, 'w') as f:
     try:

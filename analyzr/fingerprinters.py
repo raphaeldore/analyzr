@@ -1,27 +1,12 @@
-import logging
-
 import collections
 
-from analyzr.core import AnalyzrModule
+from analyzr.core import Fingerprinter
 from analyzr.utils.file import open_with_error
 
 
 # TODO: Is passing a packet conversion function very clean..? Seems a bit hackish. My design is not the best.
 # FIXME: This is a temporary solution. Probably best to just implement independent functions in NetworkTool..
 #        because depending on the fingerprinter, we must craft packets in specific ways.
-
-class Fingerprinter(AnalyzrModule):
-    def __init__(self, name: str, os_fingerprint_file_name: str, pkt_conversion_fn: callable):
-        super().__init__(name)
-        self.os_fingerprint_file_name = os_fingerprint_file_name
-        self.pkt_conversion_fn = pkt_conversion_fn
-        self.logger = logging.getLogger(__name__)
-
-    def load_fingerprints(self):
-        raise NotImplemented
-
-    def identify_os_from_pkt(self, pkt) -> set:
-        raise NotImplemented
 
 
 class EttercapFingerprinter(Fingerprinter):
