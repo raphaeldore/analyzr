@@ -12,8 +12,7 @@ import netaddr
 from texttable import Texttable
 
 from analyzr import constants
-from analyzr.core import NetworkNode
-from analyzr.networktool import NetworkToolFacade
+from analyzr.core import NetworkNode, NetworkToolFacade
 from analyzr.utils.file import make_sure_path_exists
 
 logger = logging.getLogger(__name__)
