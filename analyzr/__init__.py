@@ -107,8 +107,8 @@ def parse_networks(values: List[str]) -> (list, list):
     The networks must be in CIDR format, for example: 192.168.1.0/24. Also, the network must be
     a private IPV4 address.
 
-    :param values: List of networks in CIDR format.
-    :return: list of errors, or empty list if no errors.
+    :param values: List of networks in CIDR format (Ex: 192.168.1.0/24).
+    :return: list of errors, or an empty list if there are no errors.
     """
     from netaddr import IPNetwork, AddrFormatError
 
@@ -117,14 +117,14 @@ def parse_networks(values: List[str]) -> (list, list):
         try:
             network = IPNetwork(net)
             if "/" not in net:  # we test this here because we are certain that the entered ip address is valid, but missing subnet mask.
-                errors.append("{network} is not valid ip network. Missing subnet mask. For example {network}/24."
+                errors.append("{network} is not a valid ip network. The subnet mask is missing. Maybe you meant: {network}/24?"
                               .format(network=net))
             elif not network.is_private():
                 errors.append(
-                    "{0:s} is not valid private ip network. This tool only scans the private IPV4 space.".format(net))
+                    "{0:s} is not a valid private ip network. This tool only scans the private IPV4 space.".format(net))
 
         except AddrFormatError:
-            errors.append("{0:s} is not valid ip network.".format(net))
+            errors.append("{0:s} is not a valid ip network.".format(net))
 
     return errors
 
